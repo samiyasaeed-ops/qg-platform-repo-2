@@ -1,0 +1,5 @@
+node_modules/
+build/
+test/out/
+test/*.html
+.DS_Store

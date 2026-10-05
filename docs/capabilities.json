@@ -1,0 +1,18 @@
+{
+  "assets": {},
+  "db": {"rules": [
+    {"path": "mod/core/staff", "read": "view", "write": "owner"},
+    {"path": "mod/core/teams", "read": "view", "write": "owner"},
+    {"path": "mod/core/config", "read": "view", "write": "owner"},
+    {"path": "mod/pb", "read": "view", "write": "owner"},
+    {"path": "mod/sop", "read": "view", "write": "owner"},
+    {"path": "mod/lib", "read": "view", "write": "owner"}
+  ]},
+  "downloads": true,
+  "mcp": {"servers": [
+    {"server": "Gmail", "tools": ["send_message", "create_draft", "list_drafts"]},
+    {"server": "Google Drive", "tools": ["create_file"]}
+  ]},
+  "sample": {},
+  "user": {"scopes": ["profile"]}
+}

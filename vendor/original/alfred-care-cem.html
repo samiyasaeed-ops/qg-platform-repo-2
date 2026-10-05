@@ -1,0 +1,1714 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Alfred Care: Complaint case management</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Public+Sans:wght@400;500;600;700&display=swap" rel="stylesheet">
+<style>
+:root{
+  --bg:#EEF0F3; --plane:#F6F7F9; --card:#FFFFFF; --card-2:#F1F3F6; --ink:#151A22; --ink-2:#5A6475; --line:#D3D8E0; --line-2:#E5E8ED;
+  --red:#C4202B; --red-soft:#F8DEDF; --amber:#995208; --amber-soft:#F6E6D1; --green:#13744A; --green-soft:#D7EEE2; --blue:#2554A3; --blue-soft:#DEE7F5;
+  --rail:#151A22; --rail-ink:#AEB6C4; --focus:#2554A3;
+  --font:"Public Sans","Segoe UI",system-ui,-apple-system,Roboto,Arial,sans-serif;
+  box-sizing:border-box; padding-top:env(safe-area-inset-top,0px); padding-bottom:env(safe-area-inset-bottom,0px); color-scheme:light;
+}
+@media (prefers-color-scheme: dark){
+  :root:not([data-theme="light"]){
+    --bg:#0D1015; --plane:#11151B; --card:#181D25; --card-2:#1F252F; --ink:#E7EBF0; --ink-2:#95A0B0; --line:#2A313D; --line-2:#222833;
+    --red:#EF4550; --red-soft:#3A161A; --amber:#E7A75F; --amber-soft:#382816; --green:#52BD8A; --green-soft:#142E21; --blue:#86AEEA; --blue-soft:#18273E;
+    --rail:#090B0F; --rail-ink:#8792A3; --focus:#86AEEA; color-scheme:dark;
+  }
+}
+:root[data-theme="dark"]{
+  --bg:#0D1015; --plane:#11151B; --card:#181D25; --card-2:#1F252F; --ink:#E7EBF0; --ink-2:#95A0B0; --line:#2A313D; --line-2:#222833;
+  --red:#EF4550; --red-soft:#3A161A; --amber:#E7A75F; --amber-soft:#382816; --green:#52BD8A; --green-soft:#142E21; --blue:#86AEEA; --blue-soft:#18273E;
+  --rail:#090B0F; --rail-ink:#8792A3; --focus:#86AEEA; color-scheme:dark;
+}
+*,*::before,*::after{box-sizing:inherit}
+[hidden]{display:none !important}
+html{height:100%;scroll-padding-top:env(safe-area-inset-top,0px)}
+body{margin:0;height:100%;display:flex;background:var(--bg);color:var(--ink);font:15px/1.5 var(--font);font-variant-numeric:tabular-nums}
+button,input,select,textarea{font:inherit;color:inherit}
+:focus-visible{outline:2px solid var(--focus);outline-offset:2px}
+a{color:var(--blue)}
+h1,h2,h3,h4{line-height:1.25}
+
+/* icon rail */
+.rail{width:68px;flex:none;background:var(--rail);display:flex;flex-direction:column;align-items:center;padding:12px 0;gap:4px}
+.rail .logo{width:36px;height:36px;border-radius:9px;background:var(--red);color:#fff;display:grid;place-items:center;font-weight:700;margin-bottom:10px;font-size:15px}
+.rail button{width:56px;border:0;background:none;color:var(--rail-ink);border-radius:8px;padding:7px 0 5px;cursor:pointer;display:grid;justify-items:center;gap:2px;font-size:10.5px;font-weight:500}
+.rail button svg{width:20px;height:20px}
+.rail button:hover{color:#fff;background:rgba(255,255,255,.06)}
+.rail button[aria-current="page"]{color:#fff;background:rgba(255,255,255,.1);box-shadow:inset 3px 0 0 var(--red)}
+.rail .sp{flex:1}
+.app{flex:1;min-width:0;display:flex;flex-direction:column;background:var(--plane)}
+.bar{display:flex;align-items:center;gap:14px;padding:10px 20px;border-bottom:1px solid var(--line);background:var(--card);flex-wrap:wrap}
+.bar h1{font-size:17px;margin:0;margin-right:auto}
+.bar h1 span{font-weight:500;color:var(--ink-2);margin-left:8px;font-size:13px}
+.me{display:flex;gap:8px;align-items:center;font-size:13px;color:var(--ink-2)}
+.me img{width:26px;height:26px;border-radius:50%}
+.banner{margin:10px 20px 0;padding:9px 14px;border-radius:8px;background:var(--amber-soft);color:var(--amber);font-size:14px;border:1px solid var(--amber)}
+.view{flex:1;min-height:0;overflow:auto}
+.page{padding:22px max(20px,calc((100% - 1080px)/2)) 80px}
+.page > h2:first-child{font-size:24px;margin:0 0 4px;letter-spacing:-.01em}
+
+/* controls */
+.btn{border:1px solid var(--line);background:var(--card);padding:7px 14px;border-radius:6px;cursor:pointer;font-weight:500;line-height:1.3;white-space:nowrap}
+.btn:hover{background:var(--card-2)}
+.btn[disabled]{opacity:.45;cursor:not-allowed}
+.btn.primary{background:var(--red);border-color:var(--red);color:#fff}
+.btn.primary:hover{filter:brightness(1.08);background:var(--red)}
+.btn.ok{background:var(--green);border-color:var(--green);color:#fff}
+.btn.warn{background:var(--amber-soft);border-color:var(--amber);color:var(--amber)}
+.btn.sm{padding:4px 10px;font-size:13px}
+.btn.link{border:0;background:none;padding:0 2px;color:var(--blue);text-decoration:underline;font-size:13px}
+select,input[type=text],input[type=email],input[type=url],input[type=number],input[type=datetime-local],input[type=date],input[type=time],textarea{border:1px solid var(--line);background:var(--card);border-radius:6px;padding:7px 9px;width:100%;min-width:0}
+textarea{resize:vertical;min-height:76px;line-height:1.5}
+label.f{display:grid;gap:4px;font-size:13px;color:var(--ink-2);font-weight:500}
+.g2{display:grid;grid-template-columns:repeat(auto-fit,minmax(200px,1fr));gap:12px}
+.g3{display:grid;grid-template-columns:repeat(auto-fit,minmax(160px,1fr));gap:12px}
+.stack{display:grid;gap:12px}
+.row{display:flex;gap:8px;align-items:center;flex-wrap:wrap}
+.muted{color:var(--ink-2)}
+.sm{font-size:13px}
+.req::after{content:" *";color:var(--red)}
+.chk{display:flex;gap:9px;align-items:flex-start;cursor:pointer;font-size:14px}
+.chk input{margin-top:4px;width:16px;height:16px;flex:none}
+
+/* pills & flags */
+.pill{display:inline-block;font-size:12px;font-weight:600;padding:2px 8px;border-radius:999px;background:var(--card-2);color:var(--ink-2);border:1px solid var(--line);white-space:nowrap}
+.pill.s-new{background:var(--blue-soft);color:var(--blue);border-color:transparent}
+.pill.s-routed_to_unit,.pill.s-unit_input_pending{color:var(--ink)}
+.pill.s-evaluator_review{background:var(--red);color:#fff;border-color:var(--red)}
+.pill.s-rework_requested{background:var(--amber-soft);color:var(--amber);border-color:transparent}
+.pill.s-rca_complete{background:var(--green-soft);color:var(--green);border-color:transparent}
+.pill.s-resolved{background:none;color:var(--green);border-color:var(--green)}
+.pill.s-closed_duplicate{background:none}
+.flag{display:inline-block;font-size:11.5px;font-weight:600;padding:1px 7px;border-radius:4px;background:var(--card-2);color:var(--ink-2)}
+.flag.red{background:var(--red-soft);color:var(--red)}
+.flag.amber{background:var(--amber-soft);color:var(--amber)}
+.flag.blue{background:var(--blue-soft);color:var(--blue)}
+
+/* now page */
+.tiles{display:grid;grid-template-columns:repeat(auto-fit,minmax(140px,1fr));gap:10px;margin:18px 0}
+.tile{background:var(--card);border:1px solid var(--line);border-radius:10px;padding:12px 14px;text-align:left;cursor:pointer}
+.tile:hover{border-color:var(--ink-2)}
+.tile b{display:block;font-size:28px;line-height:1.1}
+.tile span{font-size:13px;color:var(--ink-2)}
+.tile.hot b{color:var(--red)}
+.cols{display:grid;grid-template-columns:minmax(0,2fr) minmax(0,1fr);gap:16px}
+.card{background:var(--card);border:1px solid var(--line);border-radius:10px}
+.card > h3{margin:0;padding:12px 16px;border-bottom:1px solid var(--line-2);font-size:15px;display:flex;justify-content:space-between;gap:8px;align-items:baseline}
+.card > .in{padding:12px 16px}
+.bars{display:grid;gap:8px}
+.bars div{display:grid;grid-template-columns:120px 1fr 28px;gap:8px;align-items:center;font-size:13px}
+.bars i{display:block;height:8px;border-radius:4px;background:var(--red);min-width:2px}
+
+/* cases workspace */
+.work{display:grid;grid-template-columns:200px minmax(280px,360px) minmax(0,1fr);height:100%}
+.queues{padding:14px 8px;border-right:1px solid var(--line);overflow:auto}
+.queues h4{font-size:12px;color:var(--ink-2);margin:0 10px 6px;font-weight:600}
+.qb{display:flex;justify-content:space-between;width:100%;border:0;background:none;padding:7px 10px;border-radius:6px;cursor:pointer;text-align:left;color:var(--ink);font-size:14px}
+.qb:hover{background:var(--card)}
+.qb[aria-pressed="true"]{background:var(--card);box-shadow:inset 3px 0 0 var(--red);font-weight:600}
+.qb .n{color:var(--ink-2);font-weight:500}
+.qb .n.hot{color:var(--red);font-weight:700}
+.list{border-right:1px solid var(--line);display:flex;flex-direction:column;min-height:0;min-width:0}
+.lh{padding:12px;display:grid;gap:8px;border-bottom:1px solid var(--line)}
+.items{overflow:auto;flex:1}
+.it{display:block;width:100%;text-align:left;border:0;border-bottom:1px solid var(--line-2);background:none;padding:11px 14px;cursor:pointer;color:var(--ink)}
+.it:hover{background:var(--card)}
+.it[aria-current="true"]{background:var(--card);box-shadow:inset 3px 0 0 var(--red)}
+.it .t1{display:flex;justify-content:space-between;gap:8px;align-items:baseline}
+.it .ref{font-weight:600;font-size:13.5px}
+.it .ti{font-size:14px;margin:2px 0 4px;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden}
+.it .t3{display:flex;gap:6px;flex-wrap:wrap;font-size:12px;color:var(--ink-2);align-items:center}
+.due{font-size:12px;font-weight:600}
+.due.over{color:var(--red)}
+.due.soon{color:var(--amber)}
+.empty{padding:26px 16px;color:var(--ink-2)}
+.empty b{display:block;color:var(--ink);margin-bottom:4px}
+.detail{overflow:auto;padding:18px 22px 70px;min-width:0}
+.back{display:none}
+
+/* case page */
+.ch{display:flex;justify-content:space-between;gap:12px;flex-wrap:wrap;align-items:flex-start}
+.ch h2{margin:0;font-size:22px;letter-spacing:-.01em}
+.ch .ref{font-size:13px;color:var(--ink-2);font-weight:600}
+.facts{display:flex;gap:6px 14px;flex-wrap:wrap;font-size:13px;color:var(--ink-2);margin-top:6px}
+.facts b{color:var(--ink);font-weight:600}
+.flags{display:flex;gap:6px;flex-wrap:wrap;margin-top:8px}
+.track{margin:18px 0 6px;overflow-x:auto;padding:14px 2px 2px}
+.track ol{list-style:none;margin:0;padding:0;display:grid;grid-template-columns:repeat(6,minmax(92px,1fr));min-width:600px}
+.track li{position:relative;padding-top:24px;font-size:12px;color:var(--ink-2);text-align:center}
+.track li::before{content:"";position:absolute;top:7px;left:0;right:0;height:2px;background:var(--line)}
+.track li:first-child::before{left:50%}
+.track li:last-child::before{right:50%}
+.track li.done::before{background:var(--green)}
+.track .d{position:absolute;top:1px;left:50%;width:14px;height:14px;margin-left:-7px;border-radius:50%;background:var(--card);border:2px solid var(--line)}
+.track li.done .d{background:var(--green);border-color:var(--green)}
+.track li.cur{color:var(--ink);font-weight:600}
+.track li.cur .d{background:var(--ink);border-color:var(--ink);box-shadow:0 0 0 4px var(--card-2)}
+.track li.gate .d{border-radius:3px;width:18px;margin-left:-9px}
+.track li.gate::after{content:"Gate";position:absolute;top:-14px;left:50%;transform:translateX(-50%);font-size:10px;font-weight:700;color:var(--red)}
+.track li.rw .d{border-color:var(--amber);background:var(--amber-soft)}
+.track li.skip{opacity:.4}
+.loopnote{text-align:center;font-size:12px;color:var(--amber);margin-top:4px}
+.clocks{display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:8px;margin:12px 0}
+.clk{border:1px solid var(--line);border-radius:8px;padding:8px 10px;background:var(--card)}
+.clk .k{font-size:12px;color:var(--ink-2)}
+.clk .v{font-weight:600;font-size:14px}
+.clk.over{border-color:var(--red);background:var(--red-soft)}
+.clk.over .v{color:var(--red)}
+.clk.met .v{color:var(--green)}
+.clk.idle{opacity:.55}
+.layout{display:grid;grid-template-columns:minmax(0,1fr) 300px;gap:16px;align-items:start}
+.sect{background:var(--card);border:1px solid var(--line);border-radius:10px;margin-bottom:14px}
+.sect > header{display:flex;gap:10px;align-items:center;padding:11px 16px;border-bottom:1px solid var(--line-2)}
+.sect > header .no{width:22px;height:22px;border-radius:50%;display:grid;place-items:center;font-size:11.5px;font-weight:700;border:1.5px solid var(--line);color:var(--ink-2);flex:none}
+.sect.done > header .no{background:var(--green);border-color:var(--green);color:#fff}
+.sect.cur > header .no{background:var(--ink);border-color:var(--ink);color:var(--card)}
+.sect.cur{border-color:var(--ink-2)}
+.sect > header h3{margin:0;font-size:15px}
+.sect > header .own{margin-left:auto;font-size:12px;color:var(--ink-2)}
+.sect .b{padding:13px 16px;display:grid;gap:12px}
+.sect.lock .b{color:var(--ink-2)}
+dl.kv{display:grid;grid-template-columns:max-content 1fr;gap:5px 14px;margin:0;font-size:14px}
+dl.kv dt{color:var(--ink-2)}
+dl.kv dd{margin:0;white-space:pre-wrap;overflow-wrap:anywhere}
+.box{border:1px solid var(--line-2);border-radius:8px;padding:10px 12px;background:var(--card-2)}
+.box .h{display:flex;justify-content:space-between;gap:8px;font-size:12.5px;color:var(--ink-2);margin-bottom:4px;flex-wrap:wrap}
+.box pre{margin:0;white-space:pre-wrap;font:13px/1.5 var(--font);max-height:200px;overflow:auto}
+.callout{border-left:3px solid var(--amber);background:var(--amber-soft);padding:9px 13px;border-radius:0 8px 8px 0;font-size:14px}
+.callout.red{border-color:var(--red);background:var(--red-soft)}
+.callout.green{border-color:var(--green);background:var(--green-soft)}
+.callout.blue{border-color:var(--blue);background:var(--blue-soft)}
+.callout b{display:block}
+.probs{color:var(--red);font-size:13px;margin:0;padding-left:18px}
+.qa{display:grid;grid-template-columns:auto 1fr;gap:14px}
+.score{width:76px;height:76px;border-radius:10px;border:2px solid var(--line);display:grid;place-items:center;text-align:center}
+.score b{font-size:30px;line-height:1}
+.score small{display:block;font-size:11px;color:var(--ink-2)}
+.score.hi{border-color:var(--green);color:var(--green)}
+.score.mid{border-color:var(--amber);color:var(--amber)}
+.score.lo{border-color:var(--red);color:var(--red)}
+ul.tight{margin:4px 0 0;padding-left:18px}
+ul.tight li{margin:2px 0}
+.gate{display:grid;grid-template-columns:1fr 1fr;gap:14px}
+.gate > div{border:1px solid var(--line);border-radius:8px;padding:12px;display:grid;gap:10px;align-content:start}
+.gate > .a{border-color:var(--green)}
+.gate > .r{border-color:var(--amber)}
+.gate h4{margin:0;font-size:14.5px}
+.side .sect .b{gap:10px}
+.log{list-style:none;margin:0;padding:0;border-left:2px solid var(--line);margin-left:5px}
+.log li{position:relative;padding:0 0 11px 15px;font-size:12.5px}
+.log li::before{content:"";position:absolute;left:-5px;top:6px;width:8px;height:8px;border-radius:50%;background:var(--card);border:2px solid var(--ink-2)}
+.log li.st::before{background:var(--ink);border-color:var(--ink)}
+.log li.bad::before{background:var(--red);border-color:var(--red)}
+.log .n{color:var(--ink-2)}
+.log .x{display:block;white-space:pre-wrap;color:var(--ink)}
+.pbar{display:flex;gap:8px;border:1px solid var(--line);border-radius:8px;padding:5px;background:var(--card-2)}
+.pbar input{border:0;background:none;padding:6px}
+.pbar input:focus-visible{outline:none}
+.pbar:focus-within{outline:2px solid var(--focus);outline-offset:1px}
+.chips{display:flex;gap:6px;flex-wrap:wrap}
+.chip{border:1px solid var(--line);background:var(--card);border-radius:999px;padding:3px 10px;font-size:12.5px;cursor:pointer;color:var(--ink-2)}
+.chip:hover{color:var(--ink);border-color:var(--ink-2)}
+.chip.on{background:var(--ink);color:var(--card);border-color:var(--ink)}
+.sugg{border:1px dashed var(--blue);background:var(--blue-soft);border-radius:8px;padding:10px 12px;font-size:14px;display:grid;gap:8px}
+.tbl{overflow-x:auto;background:var(--card);border:1px solid var(--line);border-radius:10px}
+table{border-collapse:collapse;width:100%;font-size:13.5px}
+th,td{text-align:left;padding:8px 10px;border-bottom:1px solid var(--line-2);vertical-align:top}
+th{font-weight:600;color:var(--ink-2);background:var(--card-2);white-space:nowrap}
+tr:last-child td{border-bottom:0}
+td input,td select{padding:5px 7px}
+code{font-size:12.5px;background:var(--card-2);border:1px solid var(--line-2);border-radius:4px;padding:0 4px}
+.prop{font-size:11.5px;color:var(--amber);font-weight:600}
+.page h3{font-size:17px;margin:28px 0 8px}
+.page p{max-width:76ch}
+.toast{position:fixed;left:50%;bottom:calc(20px + env(safe-area-inset-bottom,0px));transform:translateX(-50%);background:var(--ink);color:var(--card);padding:10px 16px;border-radius:8px;font-size:14px;z-index:60;max-width:calc(100vw - 32px)}
+.spin{display:inline-block;width:12px;height:12px;border:2px solid currentColor;border-right-color:transparent;border-radius:50%;animation:sp .8s linear infinite;vertical-align:-1px;margin-right:6px}
+@keyframes sp{to{transform:rotate(360deg)}}
+@media (prefers-reduced-motion:reduce){.spin{animation:none}}
+
+@media (max-width:1180px){
+  .layout{grid-template-columns:minmax(0,1fr)}
+  .work{grid-template-columns:minmax(250px,320px) minmax(0,1fr);grid-template-rows:auto minmax(0,1fr)}
+  .queues{grid-column:1/-1;border-right:0;border-bottom:1px solid var(--line);display:flex;overflow-x:auto;padding:6px 10px;gap:2px}
+  .queues h4{display:none}
+  #ql{display:flex;gap:2px}
+  .qb{width:auto;gap:8px;white-space:nowrap}
+  .qb[aria-pressed="true"]{box-shadow:inset 0 -2px 0 var(--red)}
+  .cols{grid-template-columns:minmax(0,1fr)}
+}
+@media (max-width:760px){
+  body{flex-direction:column-reverse;height:auto;min-height:100%}
+  .rail{width:100%;flex-direction:row;justify-content:space-around;padding:4px 4px calc(4px + env(safe-area-inset-bottom,0px));position:sticky;bottom:0;z-index:30}
+  .rail .logo,.rail .sp{display:none}
+  .rail button[aria-current="page"]{box-shadow:inset 0 -3px 0 var(--red)}
+  :root{padding-bottom:0}
+  .app{min-height:100vh}
+  .view{overflow:visible}
+  .bar{padding:10px 12px}
+  .bar h1 span{display:none}
+  .work{grid-template-columns:minmax(0,1fr);grid-template-rows:auto auto;height:auto}
+  .work.sel .list{display:none}
+  .work:not(.sel) .detail{display:none}
+  .items,.detail{overflow:visible}
+  .back{display:inline-block;margin-bottom:8px}
+  .detail{padding:12px 12px 60px}
+  .gate,.qa{grid-template-columns:1fr}
+  .page{padding:16px 12px 60px}
+}
+</style>
+</head>
+<body>
+<nav class="rail" aria-label="Pages">
+  <div class="logo" aria-hidden="true">A</div>
+  <button data-view="now" aria-current="page"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M3 12h4l3-8 4 16 3-8h4"/></svg>Now</button>
+  <button data-view="cases"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><rect x="3" y="4" width="18" height="16" rx="2"/><path d="M3 10h18M9 15h6"/></svg>Cases</button>
+  <button data-view="register"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><circle cx="12" cy="12" r="9"/><path d="M12 8v8M8 12h8"/></svg>Register</button>
+  <button data-view="rules"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M5 4h11l3 3v13H5z"/><path d="M9 10h6M9 14h6M9 18h3"/></svg>Rules</button>
+  <div class="sp"></div>
+  <button data-view="admin"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><circle cx="12" cy="12" r="3"/><path d="M12 2v3M12 19v3M2 12h3M19 12h3M4.9 4.9l2.1 2.1M17 17l2.1 2.1M4.9 19.1 7 17M17 7l2.1-2.1"/></svg>Admin</button>
+  <button data-view="profile"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><circle cx="12" cy="8" r="4"/><path d="M4 21c1.5-4 4.5-6 8-6s6.5 2 8 6"/></svg>Access</button>
+</nav>
+<div class="app">
+  <header class="bar">
+    <h1>Alfred Care<span>Complaint case management</span></h1>
+    <div class="me" id="meBox"></div>
+    <button class="btn primary" id="regBtn">Register case</button>
+  </header>
+  <div class="banner" id="banner" hidden></div>
+  <div class="banner" id="testBar" hidden style="background:var(--blue-soft);color:var(--ink);border-color:var(--blue)"></div>
+  <div class="view" id="v-now"><div class="page" id="nowPage"></div></div>
+  <div class="view" id="v-cases" hidden>
+    <div class="work" id="work">
+      <aside class="queues" aria-label="Queues"><h4>Queues</h4><div id="ql"></div></aside>
+      <section class="list" aria-label="Case list">
+        <div class="lh">
+          <input type="text" id="q" placeholder="Search reference, title or customer" aria-label="Search">
+          <div class="row"><select id="fCat" aria-label="Category" style="flex:1"></select><select id="fUnit" aria-label="Unit" style="flex:1"></select></div>
+        </div>
+        <div class="items" id="items"></div>
+      </section>
+      <section class="detail" id="detail" aria-live="polite"></section>
+    </div>
+  </div>
+  <div class="view" id="v-register" hidden><div class="page" id="regPage"></div></div>
+  <div class="view" id="v-rules" hidden><div class="page" id="rulesPage"></div></div>
+  <div class="view" id="v-admin" hidden><div class="page" id="adminPage"></div></div>
+  <div class="view" id="v-profile" hidden><div class="page" id="profilePage"></div></div>
+</div>
+<div class="toast" id="toast" role="status" hidden></div>
+
+<script>
+(() => {
+"use strict";
+
+/* =========================================================
+   Reference data — BRD/FRD v1.1 working values (Q&G to confirm)
+   ========================================================= */
+const STATES=["new","routed_to_unit","unit_input_pending","evaluator_review","rework_requested","rca_complete","resolved","closed_duplicate"];
+const SL={new:"New",routed_to_unit:"Routed to unit",unit_input_pending:"Unit input pending",evaluator_review:"Evaluator review",rework_requested:"Rework requested",rca_complete:"RCA complete",resolved:"Resolved",closed_duplicate:"Closed as duplicate"};
+const OPEN=s=>!["resolved","closed_duplicate"].includes(s);
+const ROLE_LABEL={admin:"Admin",maker:"Maker",checker:"Checker",team:"Team member",compliance:"Compliance",viewer:"Viewer"};
+const ROLE_DESC={admin:"Q&G manager: teams and access, configuration, assigning anywhere, reopening, audit extract",maker:"Q&G officer / HAPEX: registers cases, records interaction QA, routes to a team, records the response and resolves",checker:"Complaint Evaluator: reviews the team's input, returns it for rework or accepts it with RCA",team:"Works cases routed to their team: accepts or is assigned, calls the client, records the input",compliance:"Reads every case and runs the audit extract",viewer:"Reads cases only"};
+const ROLES=Object.keys(ROLE_LABEL);
+const TONES=["courteous","defensive","dismissive","exemplary"];
+const QA_CHANNELS={call:"Phone call (3CX)",whatsapp:"WhatsApp",email:"Email"};
+const SOURCES={ZOHO_TICKET:"Zoho ticket",GOOGLE_REVIEW:"Google review",THREECX_CALL:"3CX call",BREVO_MESSAGE:"Brevo message",IMCRM_POLICY:"IMCRM policy",IMCRM_QUOTE:"IMCRM quote",CEM_CASE:"Alfred Care case"};
+const ACTION_TYPES=["CALL","EMAIL","MEETING","REFUND","REISSUE","ESCALATION","OTHER"];
+const VALIDITY=["Valid","Partially valid","Not valid"];
+const CONSEQ={0:"None",1:"L1 Minor: documented coaching",2:"L2 Moderate: formal coaching and follow-up audit within 30 days",3:"L3 Serious: written warning and supervisory review",4:"L4 Critical: immediate escalation to HR / Compliance"};
+const DAYS=["Sunday","Monday","Tuesday","Wednesday","Thursday","Friday","Saturday"];
+const DEFAULT_CFG={
+  version:1,
+  categories:[
+    {code:"ENQUIRY",name:"Enquiry",complaint:false,regulatory:false,priority:"Medium",ackH:null,res:null,active:true},
+    {code:"SERVICE_REQUEST",name:"Service request",complaint:false,regulatory:false,priority:"Medium",ackH:null,res:null,active:true},
+    {code:"CLAIM_RELATED",name:"Claim-related",complaint:false,regulatory:false,priority:"Medium",ackH:null,res:null,active:true},
+    {code:"COMPLAINT",name:"Complaint",complaint:true,regulatory:false,priority:"Medium",ackH:null,res:null,active:true},
+    {code:"FEEDBACK",name:"Feedback",complaint:false,regulatory:false,priority:"Medium",ackH:null,res:null,active:true},
+    {code:"APPRECIATION",name:"Appreciation",complaint:false,regulatory:false,priority:"Medium",ackH:null,res:null,active:true}
+  ],
+  priorities:["High","Medium","Low"],
+  channels:["Email (Zoho)","Website (via Zoho)","Phone (3CX)","Google Review","Walk-in","Social","Internal referral"],
+  lobs:["Motor","Health","Travel","Business","Home","Life"],
+  branches:["Dubai HQ","Abu Dhabi Branch","Not Applicable"],
+  units:["HAPEX / Happiness Centre","Motor Renewals","Organic","Retail Medical","IM Corporate","Travel","Home","Life","Business"].map(n=>({id:"t-"+n.toLowerCase().replace(/[^a-z0-9]+/g,"-").replace(/^-|-$/g,""),name:n,lob:"",headId:"",active:true})),
+  outcomes:["Client Calmed & Agreed","Compensation Accepted","Client Dissatisfied / Demanded Escalation","Voicemail"],
+  rca:{"Product":[],"Process":[],"People":[],"System":[],"Insurer":[],"Customer-side":[],"Other":[]},
+  clocks:{ackH:4,firstCallD:1,unitActionD:3,reworkD:2,attempts:3,attemptDays:2,escalationPct:80,reopenDays:30},
+  calendar:{week:[null,{o:"08:00",c:"18:30"},{o:"08:00",c:"18:30"},{o:"08:00",c:"18:30"},{o:"08:00",c:"18:30"},{o:"08:00",c:"18:30"},{o:"09:00",c:"13:00"}],holidays:[]}
+};
+const QA_PROMPT=`You are a Complaint Interaction QA Auditor. Evaluate the staff member's handling of the
+client interaction provided (call transcript, WhatsApp thread, or email).
+
+1. Classify staff tone as exactly one of: courteous, defensive, dismissive, exemplary.
+2. Assign a quality score from 1 to 10.
+3. List every protocol breach, each with a verbatim quote or timestamp as evidence.
+4. Provide 2–3 specific, actionable coaching tips.
+Return ONLY valid JSON matching the response schema. Do not invent evidence.`;
+const REFINE_PROMPT=`You are a customer response editor. Rewrite the draft response below according to the
+user's instruction. Keep it accurate to the case facts, empathetic and professional.
+Do not admit liability, promise compensation, cite laws, or include personal data
+unless those details already appear in the approved case record.`;
+const CHIPS=["Mention supervisor outbound call and apology","Make more concise for mobile","Warmer, more personal tone","Invite the customer to contact us directly"];
+
+/* ========================= helpers ========================= */
+const $=s=>document.querySelector(s);
+const esc=s=>String(s??"").replace(/[&<>"']/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
+const iso=()=>new Date().toISOString();
+const clone=o=>o==null?o:JSON.parse(JSON.stringify(o));
+const safeUrl=u=>/^https:\/\//i.test(String(u||"").trim())?String(u).trim():"";
+const fmt=t=>t?new Date(t).toLocaleString("en-GB",{timeZone:"Asia/Dubai",day:"numeric",month:"short",hour:"2-digit",minute:"2-digit"}):"";
+const fmtD=t=>t?new Date(t).toLocaleDateString("en-GB",{timeZone:"Asia/Dubai",day:"numeric",month:"short",year:"numeric"}):"";
+const opts=(list,sel,ph)=>(ph!=null?`<option value="">${esc(ph)}</option>`:"")+list.map(v=>{const val=typeof v==="object"?v.v:v,lab=typeof v==="object"?v.l:v;return `<option value="${esc(val)}"${String(val)===String(sel??"")?" selected":""}>${esc(lab)}</option>`;}).join("");
+function deepMerge(t,p){ for(const k in p){ const v=p[k]; if(v&&typeof v==="object"&&!Array.isArray(v)&&t[k]&&typeof t[k]==="object"&&!Array.isArray(t[k])) deepMerge(t[k],v); else t[k]=clone(v);} return t; }
+let tt; function toast(m){const t=$("#toast");t.textContent=m;t.hidden=false;clearTimeout(tt);tt=setTimeout(()=>t.hidden=true,4500);}
+const maskEmail=e=>{e=String(e||"");const [u,d]=e.split("@");return e?(u.slice(0,2)+"•••"+(d?"@"+d:"")):"";};
+const maskPhone=p=>{p=String(p||"").replace(/\s/g,"");return p?"•••• "+p.slice(-4):"";};
+
+/* ===================== working-time engine =====================
+   Clocks run on Asia/Dubai wall time (UTC+4, no DST) against WORK_CALENDAR. */
+const OFF=4*36e5;
+const wall=d=>new Date(new Date(d).getTime()+OFF);
+const unwall=w=>new Date(w.getTime()-OFF);
+const dkey=w=>w.toISOString().slice(0,10);
+const toMin=s=>{const [h,m]=String(s).split(":").map(Number);return h*60+(m||0);};
+const nextDay=w=>new Date(Date.UTC(w.getUTCFullYear(),w.getUTCMonth(),w.getUTCDate()+1));
+function dayHours(w){
+  const cal=cfg.calendar; if((cal.holidays||[]).includes(dkey(w))) return null;
+  const d=cal.week[w.getUTCDay()]; if(!d||!d.o||!d.c) return null;
+  const o=toMin(d.o),c=toMin(d.c); return c>o?[o,c]:null;
+}
+function addWH(start,hours){
+  let rem=Math.round(hours*60), w=wall(start);
+  for(let i=0;i<1000;i++){
+    const h=dayHours(w), m=w.getUTCHours()*60+w.getUTCMinutes();
+    if(h){ const s=Math.max(m,h[0]); if(s<h[1]){ const av=h[1]-s; if(rem<=av){ const r=new Date(Date.UTC(w.getUTCFullYear(),w.getUTCMonth(),w.getUTCDate(),0,s+rem)); return unwall(r).toISOString(); } rem-=av; } }
+    w=nextDay(w);
+  }
+  return null;
+}
+function addWD(start,n){
+  const w0=wall(start); const tod=w0.getUTCHours()*60+w0.getUTCMinutes(); let w=w0, k=0;
+  for(let i=0;i<1000;i++){
+    w=nextDay(w); const h=dayHours(w);
+    if(h){ k++; if(k>=n){ const t=Math.min(Math.max(tod,h[0]),h[1]); return unwall(new Date(Date.UTC(w.getUTCFullYear(),w.getUTCMonth(),w.getUTCDate(),0,t))).toISOString(); } }
+  }
+  return null;
+}
+function wmBetween(a,b){
+  a=new Date(a); b=new Date(b); if(b<=a) return 0;
+  let w=wall(a), end=wall(b), tot=0;
+  for(let i=0;i<1000;i++){
+    const h=dayHours(w);
+    const day0=Date.UTC(w.getUTCFullYear(),w.getUTCMonth(),w.getUTCDate());
+    if(h){ const s=Math.max(w.getTime(),day0+h[0]*6e4), e=Math.min(end.getTime(),day0+h[1]*6e4); if(e>s) tot+=(e-s)/6e4; }
+    w=nextDay(w); if(w>end) break;
+  }
+  return tot;
+}
+const isWorkingDay=t=>!!dayHours(wall(t));
+function fmtWM(min){ min=Math.round(min); if(min<60) return min+" working min"; const h=Math.floor(min/60),m=min%60; return h+"h"+(m?" "+m+"m":"")+" working"; }
+function clockState(k){
+  if(!k||!k.due) return null;
+  if(k.void) return {s:"void",label:"Void"};
+  if(k.stop){ const met=new Date(k.stop)<=new Date(k.due); return {s:met?"met":"breached",label:met?"Met":"Breached",at:k.stop}; }
+  const now=Date.now();
+  if(now>new Date(k.due)) return {s:"over",label:"Overdue",remain:-wmBetween(k.due,now)};
+  return {s:"run",label:"Running",remain:wmBetween(now,k.due)};
+}
+const CLOCK_LABEL={ack:"Acknowledgement",firstCall:"First unit call",unitAction:"Unit action",rework:"Rework",resolution:"Resolution"};
+
+/* ========================= state ========================= */
+let db=null,user=null,sample=null,downloads=null,assets=null;
+let me=null,uid=null,meName="",meAvatar="",isOwner=false,mode="local",actingAs=null;
+let cfg=clone(DEFAULT_CFG);
+let cases=[],people={},members={},events=[],loaded=false;
+let view="now",queue="open",selRef=null,qText="",fCat="",fUnit="";
+const drafts={},busy={},names={},undo={},problems={},revealed={};
+let evUnsub=null,pendingDetail=false;
+const mem={cases:new Map(),events:[],people:{},logs:[]};
+
+/* ========================= roles ========================= */
+/* Access: people are member records (staff and advisors) maintained by an Admin.
+   A member is linked to a tool sign-in; roles and teams live on the member.
+   Admins can "act as" any member to test the workflow end to end. */
+function linked(){ return Object.entries(members).find(([,m])=>m.userId&&m.userId===uid&&m.active!==false)||null; }
+function realAdmin(){ const l=linked(); return isOwner||!!(l&&(l[1].roles||[]).includes("admin")); }
+function persona(){ if(actingAs&&members[actingAs]) return [actingAs,members[actingAs]]; return linked(); }
+function syncMe(){ if(actingAs&&(!members[actingAs]||!realAdmin())) actingAs=null; const p=persona(); me=p?p[0]:(uid?"u:"+uid:"local"); }
+function myRoles(){ const p=persona(); const r=new Set(p?(p[1].roles||[]):[]); if(!actingAs&&isOwner) r.add("admin"); return r; }
+const has=r=>myRoles().has(r);
+const myUnits=()=>{ const p=persona(); return p?(p[1].teams||[]):[]; };
+const isMgr=()=>has("admin");
+const tid=x=>(cfg.units.find(u=>u.id===x||u.name===x)||{}).id||x;
+const teamName=x=>(cfg.units.find(u=>u.id===x||u.name===x)||{}).name||x||"";
+const activeTeams=()=>cfg.units.filter(u=>u.active!==false);
+const inUnit=c=>has("team")&&myUnits().includes(tid(c.unit));
+const unitHead=c=>((cfg.units.find(u=>u.id===tid(c.unit))||{}).headId)===me;
+const teamMembers=t=>Object.entries(members).filter(([,m])=>m.active!==false&&(m.roles||[]).includes("team")&&(m.teams||[]).includes(tid(t)));
+const isHandler=c=>isMgr()||has("maker")||c.ownerId===me||inUnit(c);
+const canSeeContact=c=>isMgr()||has("compliance")||c.ownerId===me||inUnit(c)||c.createdBy===me||((has("maker"))&&c.status==="new");
+const catOf=c=>cfg.categories.find(x=>x.code===c.category)||{name:c.category||"Uncategorised",complaint:!!c.complaint};
+function independence(c){
+  const why=[];
+  if(c.ownerId===me) why.push("you own this case for the team");
+  if(c.advisor&&c.advisor.id&&c.advisor.id===me) why.push("you are the attributed advisor");
+  if((c.unitCalls||[]).some(x=>x.by===me)||(c.unitInput&&c.unitInput.by===me)) why.push("you recorded the unit's call or input");
+  if(inUnit(c)) why.push("you are a member of "+teamName(c.unit));
+  return why;
+}
+function nameOf(id){ if(!id) return "—"; let n=members[id]&&members[id].name; if(!n&&String(id).startsWith("u:")) n=names[id.slice(2)]||(id.slice(2)===uid?meName:""); n=n||names[id]||"Someone"; return id===me?n+" (you)":n; }
+
+/* ========================= store ========================= */
+const chains={};
+function chain(key,fn){ const p=(chains[key]||Promise.resolve()).then(fn); chains[key]=p.catch(()=>{}); return p; }
+function writeErr(e){
+  const c=e&&e.code;
+  toast(c==="invalid_argument"?"This change wasn't saved: your access to this tool is view-only."
+    :c==="quota_exceeded"?"Storage is full. Ask an Admin to export and archive closed cases."
+    :"This change wasn't saved. Check your connection and try again.");
+}
+async function createCase(c){
+  if(mode==="local"){ mem.cases.set(c.ref,clone(c)); cases=[...mem.cases.values()]; return; }
+  try{ await chain(c.ref,()=>db.doc("cases/"+c.ref).set(clone(c))); }catch(e){ writeErr(e); throw e; }
+}
+async function updateCase(ref,patch){
+  patch=clone(patch); patch.updatedAt=iso(); patch.updatedBy=me;
+  if(mode==="local"){ const c=mem.cases.get(ref); deepMerge(c,patch); cases=[...mem.cases.values()]; return; }
+  try{ await chain(ref,()=>db.doc("cases/"+ref).update(patch)); }catch(e){ writeErr(e); throw e; }
+}
+async function addEvent(ref,type,o={}){
+  const e={caseRef:ref,type,at:iso(),by:me,realUser:uid,actingAs:actingAs||null,from:o.from||null,to:o.to||null,reason:o.reason||"",payload:o.payload||null};
+  if(mode==="local"){ mem.events.push(e); if(ref===selRef) events=mem.events.filter(x=>x.caseRef===ref); return; }
+  try{ await db.collection("events").add(e); }catch(err){ /* event loss is reported but does not undo the case write */ toast("The audit event wasn't recorded. Reload and check the case log."); }
+}
+async function addLog(coll,o){
+  o={...o,at:iso(),by:me,realUser:uid};
+  if(mode==="local"){ mem.logs.push({coll,...o}); return; }
+  try{ await db.collection(coll).add(o); }catch(_){}
+}
+function watchEvents(ref){
+  if(evUnsub){ evUnsub(); evUnsub=null; }
+  events=[];
+  if(!ref) return;
+  if(mode==="local"){ events=mem.events.filter(x=>x.caseRef===ref); return; }
+  evUnsub=db.collection("events").where("caseRef","==",ref).onSnapshot(s=>{ events=s.docs.map(d=>d.data()); renderDetail(); refreshNames(); },()=>{});
+}
+async function allEventsSince(fromIso){
+  if(mode==="local") return mem.events.filter(e=>e.at>=fromIso);
+  const s=await db.collection("events").where("at",">=",fromIso).get();
+  return s.docs.map(d=>d.data());
+}
+async function nextRef(){
+  const yr=new Date().getFullYear();
+  const pad=n=>"CEM-"+yr+"-"+String(n).padStart(6,"0");
+  const localMax=()=>cases.reduce((m,c)=>{const x=String(c.ref).match(/^CEM-(\d{4})-(\d+)$/);return x&&+x[1]===yr?Math.max(m,+x[2]):m;},0);
+  if(mode==="local") return pad(localMax()+1);
+  const ref=db.doc("meta/seq-"+yr);
+  for(let i=0;i<8;i++){
+    try{
+      const l=await ref.acquire({holder:me+"-"+Math.random().toString(36).slice(2,7),ttlMs:5000});
+      if(l.acquired){ const s=await ref.get(); const n=Math.max(s.exists?(s.data().n||0):0,localMax())+1; await ref.set({n}); return pad(n); }
+    }catch(e){ if(e&&e.code==="invalid_argument") throw e; }
+    await new Promise(r=>setTimeout(r,350+Math.random()*450));
+  }
+  throw {code:"unavailable"};
+}
+let nameT;
+function refreshNames(){
+  if(!user) return; clearTimeout(nameT);
+  nameT=setTimeout(async()=>{
+    const ids=new Set(Object.keys(people));
+    const addU=x=>{ if(x&&String(x).startsWith("u:")) ids.add(x.slice(2)); };
+    cases.forEach(c=>{addU(c.createdBy);addU(c.ownerId);}); events.forEach(e=>{addU(e.by); if(e.realUser) ids.add(e.realUser);});
+    Object.values(members).forEach(m=>{ if(m.userId) ids.add(m.userId); });
+    const want=[...ids].filter(x=>x&&!names[x]);
+    if(!want.length) return;
+    try{ const ps=await user.profiles(want); let ch=false; want.forEach(id=>{const n=ps&&ps[id]&&ps[id].name; if(n){names[id]=n;ch=true;}}); if(ch) renderAll(); }catch(_){}
+  },120);
+}
+
+/* ===================== derived flags & queues ===================== */
+function runningClocks(c){ return Object.entries(c.clocks||{}).map(([k,v])=>[k,v,clockState(v)]).filter(([,,s])=>s&&(s.s==="run"||s.s==="over")); }
+const overdue=c=>OPEN(c.status)&&runningClocks(c).some(([,,s])=>s.s==="over");
+function resPct(c){ const k=(c.clocks||{}).resolution; if(!k||!k.due||k.stop||k.void) return 0; const tot=wmBetween(k.start,k.due); return tot?wmBetween(k.start,Date.now())/tot*100:0; }
+function isRepeat(c){
+  const key=[(c.customer||{}).email,(c.customer||{}).mobile].filter(Boolean).map(s=>String(s).toLowerCase().replace(/\s/g,""));
+  if(!key.length) return false;
+  const t=new Date(c.openedAt).getTime();
+  return cases.some(o=>o.ref!==c.ref&&o.category===c.category&&o.status!=="closed_duplicate"&&[(o.customer||{}).email,(o.customer||{}).mobile].filter(Boolean).map(s=>String(s).toLowerCase().replace(/\s/g,"")).some(k=>key.includes(k))&&new Date(o.openedAt).getTime()<t&&t-new Date(o.openedAt).getTime()<=90*864e5);
+}
+function riskReasons(c){
+  const r=[];
+  if(typeof c.sentiment==="number"&&c.sentiment<=-0.5) r.push("negative sentiment");
+  if(catOf(c).regulatory) r.push("regulatory category");
+  if(resPct(c)>=cfg.clocks.escalationPct) r.push("resolution clock "+Math.round(resPct(c))+"% used");
+  if(isRepeat(c)) r.push("repeat issue");
+  return r;
+}
+const highRisk=c=>OPEN(c.status)&&riskReasons(c).length>0;
+function minRemain(c){ const r=runningClocks(c); if(!r.length) return Infinity; return Math.min(...r.map(([,,s])=>s.remain)); }
+function dueToday(c){ const today=dkey(wall(Date.now())); return runningClocks(c).some(([,k])=>dkey(wall(k.due))===today); }
+const QUEUES=[
+  {id:"open",label:"All open",m:c=>OPEN(c.status)},
+  {id:"mine",label:"My cases",m:c=>OPEN(c.status)&&c.ownerId===me},
+  {id:"team",label:"Team queue",m:c=>OPEN(c.status)&&myUnits().includes(tid(c.unit))},
+  {id:"assign",label:"To assign",m:c=>c.status==="routed_to_unit"&&!c.ownerId&&(isMgr()||unitHead(c))},
+  {id:"intake",label:"Awaiting routing",m:c=>c.status==="new"},
+  {id:"unassigned",label:"Unassigned",m:c=>OPEN(c.status)&&c.status!=="new"&&!c.ownerId},
+  {id:"gate",label:"Evaluator queue",m:c=>c.status==="evaluator_review"},
+  {id:"overdue",label:"Overdue",m:overdue,hot:true},
+  {id:"escalated",label:"Escalated",m:c=>OPEN(c.status)&&c.escalation&&c.escalation.active,hot:true},
+  {id:"risk",label:"High-risk",m:highRisk,hot:true},
+  {id:"closed",label:"Resolved and closed",m:c=>!OPEN(c.status)}
+];
+
+/* ========================= transitions ========================= */
+const FLOW={
+  "new>routed_to_unit":{label:"Route to unit",who:"Maker or Admin"},
+  "new>closed_duplicate":{label:"Close as duplicate",who:"Maker or Admin"},
+  "routed_to_unit>unit_input_pending":{label:"Accept case",who:"A team member of the case's team"},
+  "routed_to_unit>resolved":{label:"Resolve",who:"The case owner, Maker or Admin (non-complaint cases only)"},
+  "unit_input_pending>evaluator_review":{label:"Submit to evaluator",who:"The case owner"},
+  "evaluator_review>rework_requested":{label:"Return for rework",who:"An independent Checker"},
+  "rework_requested>unit_input_pending":{label:"Pick up rework",who:"The case owner"},
+  "evaluator_review>rca_complete":{label:"Accept",who:"An independent Checker"},
+  "rca_complete>resolved":{label:"Record response and resolve",who:"Maker or Admin"},
+  "resolved>unit_input_pending":{label:"Reopen",who:"Admin, within the reopen window"}
+};
+function allowed(c,to){
+  const k=c.status+">"+to;
+  switch(k){
+    case "new>routed_to_unit": return isMgr()||has("maker");
+    case "new>closed_duplicate": return isMgr()||has("maker");
+    case "routed_to_unit>unit_input_pending": return c.ownerId?c.ownerId===me:inUnit(c);
+    case "routed_to_unit>resolved": return !catOf(c).complaint&&(c.ownerId===me||inUnit(c)||isMgr()||has("maker"));
+    case "unit_input_pending>evaluator_review": case "rework_requested>unit_input_pending": return c.ownerId===me;
+    case "evaluator_review>rework_requested": case "evaluator_review>rca_complete": return has("checker");
+    case "rca_complete>resolved": return isMgr()||has("maker");
+    case "resolved>unit_input_pending": return isMgr();
+  }
+  return false;
+}
+function callsOk(c){
+  const calls=c.unitCalls||[];
+  if(calls.some(x=>x.connected&&safeUrl(x.recordingUrl))) return {ok:true,how:"connected call with recording"};
+  const days=new Set(calls.map(x=>dkey(wall(x.at))));
+  if(calls.length>=cfg.clocks.attempts&&days.size>=cfg.clocks.attemptDays) return {ok:true,how:calls.length+" attempts over "+days.size+" working days"};
+  return {ok:false};
+}
+function guard(c,to){
+  const p=[], k=c.status+">"+to, cat=catOf(c);
+  if(k==="new>routed_to_unit"){
+    if(!c.unit) p.push("Choose the team that will own the case.");
+    if(!c.category) p.push("Confirm the category.");
+    if(cat.complaint&&!c.interactionQA) p.push("Record the interaction QA of the original contact, or record that there was no identifiable staff interaction.");
+  }
+  if(k==="new>closed_duplicate"){
+    if(!c._dupOf) p.push("Choose the original case this duplicates.");
+    else if(c._dupOf===c.ref) p.push("A case can't duplicate itself.");
+    else if(!cases.some(x=>x.ref===c._dupOf)) p.push("That original case wasn't found.");
+    if(!(c._reason||"").trim()) p.push("Give a reason.");
+  }
+  if(k==="routed_to_unit>unit_input_pending"&&!c.ownerId&&!inUnit(c)) p.push("Only a member of "+teamName(c.unit)+" can accept this case.");
+  if(k==="routed_to_unit>resolved"){
+    if(cat.complaint) p.push("Complaints must pass the unit call and evaluator gate.");
+    if(!(c._reason||"").trim()) p.push("Record how the case was resolved.");
+  }
+  if(k==="unit_input_pending>evaluator_review"){
+    if(!callsOk(c).ok) p.push(`Log a connected outbound call with its recording, or ${cfg.clocks.attempts} attempts over ${cfg.clocks.attemptDays} working days.`);
+    const u=c.unitInput||{};
+    if(!u.outcome) p.push("Choose the call outcome.");
+    if(!(u.notes||"").trim()) p.push("Record what was discussed and agreed.");
+    if(!(u.action||"").trim()) p.push("Summarise the action the unit took.");
+  }
+  if(k==="rework_requested>unit_input_pending"&&!(c._reason||"").trim()) p.push("Record what you'll change in the rework.");
+  if(k==="evaluator_review>rework_requested"||k==="evaluator_review>rca_complete"){
+    const why=independence(c); if(why.length) p.push("You can't review this case: "+why.join("; ")+".");
+  }
+  if(k==="evaluator_review>rework_requested"&&!(c._reason||"").trim()) p.push("Give the reasons for rework. Say exactly what the unit must redo or provide.");
+  if(k==="evaluator_review>rca_complete"){
+    const r=c._rca||{};
+    if(!r.l1) p.push("Choose the RCA category.");
+    if(!(r.note||"").trim()) p.push("Write the RCA note.");
+    if(!c._validity) p.push("Record the complaint's validity.");
+    if(c._level==null||c._level==="") p.push("Record the consequence level (choose None if none applies).");
+  }
+  if(k==="rca_complete>resolved"&&!(c._response||"").trim()) p.push("Record the controlled response sent to the customer.");
+  if(k==="resolved>unit_input_pending"){
+    if(!(c._reason||"").trim()) p.push("Give the reason for reopening.");
+    if(c.resolvedAt&&Date.now()-new Date(c.resolvedAt)>cfg.clocks.reopenDays*864e5) p.push(`Cases can only be reopened within ${cfg.clocks.reopenDays} days of resolution.`);
+  }
+  return p;
+}
+async function transition(c,to,extra={}){
+  const k=c.status+">"+to, f=FLOW[k], fromStatus=c.status;
+  if(!f){ toast("That move isn't allowed from "+SL[c.status]+"."); return false; }
+  if(!allowed(c,to)){ toast(f.label+" is for: "+f.who+"."); return false; }
+  const probe={...c,...extra};
+  const p=guard(probe,to);
+  if(p.length){
+    problems[c.ref+">"+to]=p;
+    if(to==="rework_requested"||to==="rca_complete"){ const w=independence(c); if(w.length) addEvent(c.ref,"INDEPENDENCE_REFUSED",{reason:w.join("; ")}); }
+    renderDetail(true); return false;
+  }
+  delete problems[c.ref+">"+to];
+  const now=iso(), patch={status:to,statusAt:now}, cl={}, cat=catOf(c);
+  let reason=extra._reason||"";
+  if(k==="new>routed_to_unit"){
+    patch.unit=c.unit; patch.routedAt=now; patch.acknowledgedAt=now; cl.ack={stop:now};
+    if(cat.complaint) cl.unitAction={start:now,due:addWD(now,cfg.clocks.unitActionD)};
+    reason="Routed to "+teamName(c.unit);
+  }
+  if(k==="new>closed_duplicate"){ patch.duplicateOf=extra._dupOf; patch.closedAt=now; Object.keys(c.clocks||{}).forEach(x=>cl[x]={void:true}); }
+  if(k==="routed_to_unit>unit_input_pending"){
+    if(!c.ownerId){ patch.ownerId=me; patch.assignedAt=now; }
+    if(cat.complaint&&!(c.clocks||{}).firstCall) cl.firstCall={start:now,due:addWD(now,cfg.clocks.firstCallD)};
+    reason=reason||"Accepted by unit";
+  }
+  if(k==="routed_to_unit>resolved"){ patch.resolvedAt=now; patch.resolution=reason; Object.entries(c.clocks||{}).forEach(([x,v])=>{ if(v&&!v.stop&&!v.void) cl[x]={stop:now}; }); }
+  if(k==="unit_input_pending>evaluator_review"){
+    const ck=c.clocks||{};
+    if(ck.unitAction&&!ck.unitAction.stop) cl.unitAction={stop:now};
+    if(ck.rework&&!ck.rework.stop) cl.rework={stop:now};
+    reason="Unit input submitted ("+callsOk(c).how+")";
+  }
+  if(k==="evaluator_review>rework_requested"){
+    patch.reworkCount=(c.reworkCount||0)+1;
+    patch.reviews=[...(c.reviews||[]),{at:now,by:me,decision:"REWORK",reasons:reason}];
+    patch.evaluatorId=me;
+    cl.rework={start:now,due:addWD(now,cfg.clocks.reworkD),stop:null};
+  }
+  if(k==="rework_requested>unit_input_pending"){ patch.reworkNotes=[...(c.reworkNotes||[]),{at:now,by:me,text:reason}]; }
+  if(k==="evaluator_review>rca_complete"){
+    patch.reviews=[...(c.reviews||[]),{at:now,by:me,decision:"ACCEPT",reasons:reason||""}];
+    patch.evaluatorId=me;
+    patch.rca={...extra._rca,by:me,at:now}; patch.validity=extra._validity; patch.consequenceLevel=+extra._level;
+    reason="Accepted. RCA "+extra._rca.l1+(extra._rca.l2?" / "+extra._rca.l2:"")+". Validity "+extra._validity+". Consequence "+CONSEQ[+extra._level];
+  }
+  if(k==="rca_complete>resolved"){
+    patch.resolvedAt=now; patch.response={text:extra._response,by:me,at:now};
+    Object.entries(c.clocks||{}).forEach(([x,v])=>{ if(v&&!v.stop&&!v.void) cl[x]={stop:now}; });
+    reason="Controlled response recorded";
+  }
+  if(k==="resolved>unit_input_pending"){
+    patch.reopens=[...(c.reopens||[]),{at:now,by:me,reason,previousResolvedAt:c.resolvedAt,previousRca:c.rca||null,previousResponse:c.response||null}];
+    patch.resolvedAt=null; patch.response=null; patch.rca=null;
+    cl.unitAction={start:now,due:addWD(now,cfg.clocks.unitActionD),stop:null};
+  }
+  if(Object.keys(cl).length) patch.clocks=cl;
+  try{
+    await updateCase(c.ref,patch);
+    await addEvent(c.ref,k==="resolved>unit_input_pending"?"REOPEN":k==="new>closed_duplicate"?"CLOSE":"STATUS",{from:fromStatus,to,reason,payload:k==="new>closed_duplicate"?{duplicateOf:extra._dupOf}:null});
+    toast(f.label+": done.");
+    return true;
+  }catch(_){ return false; }
+}
+
+/* ========================= drafts ========================= */
+const dv=(ref,k,saved)=>{const d=drafts[ref];return d&&k in d?d[k]:(saved??"");};
+const clr=(ref,keys)=>{const d=drafts[ref];if(d) keys.forEach(k=>delete d[k]);};
+const cur=()=>cases.find(c=>c.ref===selRef);
+
+/* ========================= rendering ========================= */
+function renderAll(){
+  renderMe();
+  if(view==="now") renderNow();
+  if(view==="cases"){ renderQueues(); renderList(); renderDetail(); }
+  if(view==="rules") renderRules();
+  const typing=id=>$(id).contains(document.activeElement)&&/^(INPUT|TEXTAREA|SELECT)$/.test(document.activeElement.tagName);
+  if(view==="admin"&&!typing("#adminPage")) renderAdmin();
+  if(view==="profile"&&!typing("#profilePage")) renderProfile();
+  refreshNames();
+}
+function renderMe(){
+  const r=[...myRoles()].map(x=>ROLE_LABEL[x]).join(", ")||"No role yet";
+  const p=persona();
+  let sw="";
+  if(realAdmin()){
+    const list=Object.entries(members).filter(([,m])=>m.active!==false).sort((a,b)=>String(a[1].name).localeCompare(b[1].name));
+    sw=`<label class="row" style="gap:6px"><span>Acting as</span><select id="actAs" style="width:auto;max-width:240px;padding:4px 8px">${opts([{v:"",l:"Myself"},...list.filter(([id])=>!(linked()&&linked()[0]===id)).map(([id,m])=>({v:id,l:m.name+" ("+(m.roles||[]).map(x=>ROLE_LABEL[x]).join(", ")+")"}))],actingAs||"")}</select></label>`;
+  }
+  $("#meBox").innerHTML=`${meAvatar&&!actingAs?`<img src="${esc(meAvatar)}" alt="">`:""}<span>${esc(p?p[1].name:(meName||"You"))}: ${esc(r)}</span>${sw}`;
+  const tb=$("#testBar"); if(tb){ tb.hidden=!actingAs; if(actingAs&&p) tb.innerHTML=`<b>Test mode.</b> You're acting as ${esc(p[1].name)} (${esc((p[1].roles||[]).map(x=>ROLE_LABEL[x]).join(", ")||"no role")}${(p[1].teams||[]).length?", "+esc(p[1].teams.map(teamName).join(", ")):""}). Actions are recorded under ${esc(p[1].name)} and logged with your real sign-in. <button class="btn link" id="stopAct">Stop acting</button>`; }
+}
+function setView(v){
+  view=v;
+  document.querySelectorAll(".rail button").forEach(b=>b.setAttribute("aria-current",b.dataset.view===v?"page":"false"));
+  ["now","cases","register","rules","admin","profile"].forEach(x=>$("#v-"+x).hidden=x!==v);
+  if(v==="register") renderRegister();
+  renderAll();
+}
+
+/* ---------- Now ---------- */
+function renderNow(){
+  const open=cases.filter(c=>OPEN(c.status));
+  const today=dkey(wall(Date.now()));
+  const todays=cases.filter(c=>dkey(wall(c.openedAt))===today);
+  const byCh={}; todays.forEach(c=>byCh[c.channel]=(byCh[c.channel]||0)+1);
+  const max=Math.max(1,...Object.values(byCh));
+  const mine=open.filter(c=>c.ownerId===me||(c.status==="evaluator_review"&&has("checker")&&!independence(c).length)||(c.status==="new"&&(has("maker")))).sort((a,b)=>minRemain(a)-minRemain(b)).slice(0,8);
+  const t=(id,n,l,hot)=>`<button class="tile${hot&&n?" hot":""}" data-goq="${id}"><b>${n}</b><span>${esc(l)}</span></button>`;
+  $("#nowPage").innerHTML=`
+    <h2>Now</h2><p class="muted sm" style="margin:0">As at ${fmt(iso())} Dubai time. Clocks use the working calendar in Admin.</p>
+    ${!loaded?`<p class="muted">Loading cases…</p>`:""}
+    <div class="tiles">
+      ${t("open",open.length,"Open")}
+      ${t("overdue",open.filter(overdue).length,"Overdue",true)}
+      ${t("unassigned",open.filter(c=>c.status!=="new"&&!c.ownerId).length,"Unassigned",true)}
+      ${t("escalated",open.filter(c=>c.escalation&&c.escalation.active).length,"Escalated",true)}
+      ${t("risk",open.filter(highRisk).length,"High-risk",true)}
+      ${t("open",open.filter(dueToday).length,"Due today")}
+    </div>
+    <div class="cols">
+      <div class="card"><h3>Needs your action<span class="sm muted">${mine.length}</span></h3>
+        ${mine.length?mine.map(itemHtml).join(""):`<div class="empty"><b>Nothing waiting on you</b>${persona()?"Cases appear here when they reach a step your role handles.":"An Admin needs to add you in Access and give you a role."}</div>`}
+      </div>
+      <div class="card"><h3>Today's intake by channel<span class="sm muted">${todays.length}</span></h3><div class="in">
+        ${todays.length?`<div class="bars">${Object.entries(byCh).sort((a,b)=>b[1]-a[1]).map(([k,v])=>`<div><span>${esc(k)}</span><i style="width:${v/max*100}%"></i><b>${v}</b></div>`).join("")}</div>`:`<p class="muted sm" style="margin:0">No cases registered today.</p>`}
+      </div></div>
+    </div>`;
+}
+
+/* ---------- Cases list ---------- */
+function renderQueues(){
+  $("#ql").innerHTML=QUEUES.map(q=>{const n=cases.filter(q.m).length;return `<button class="qb" data-q="${q.id}" aria-pressed="${q.id===queue}"><span>${esc(q.label)}</span><span class="n${q.hot&&n?" hot":""}">${n}</span></button>`;}).join("");
+  const cv=fCat; $("#fCat").innerHTML=`<option value="">All categories</option>`+cfg.categories.map(c=>`<option value="${esc(c.code)}"${c.code===cv?" selected":""}>${esc(c.name)}</option>`).join("");
+  const uv=fUnit; $("#fUnit").innerHTML=`<option value="">All teams</option>`+cfg.units.map(u=>`<option value="${esc(u.id)}"${u.id===uv?" selected":""}>${esc(u.name)}</option>`).join("");
+}
+function dueLabel(c){
+  const r=runningClocks(c); if(!r.length) return "";
+  const [k,,s]=r.sort((a,b)=>a[2].remain-b[2].remain)[0];
+  if(s.s==="over") return `<span class="due over">${esc(CLOCK_LABEL[k])} overdue</span>`;
+  return `<span class="due${s.remain<120?" soon":""}">${esc(CLOCK_LABEL[k])}: ${fmtWM(s.remain)} left</span>`;
+}
+function itemHtml(c){
+  const cat=catOf(c);
+  return `<button class="it" data-sel="${esc(c.ref)}" aria-current="${c.ref===selRef}">
+    <div class="t1"><span class="ref">${esc(c.ref)}</span><span class="pill s-${c.status}">${esc(SL[c.status])}</span></div>
+    <div class="ti">${esc(c.title)}</div>
+    <div class="t3"><span>${esc(cat.name)}</span>${c.unit?`<span>${esc(teamName(c.unit))}</span>`:""}${c.priority==="High"?`<span class="flag red">High</span>`:""}${c.escalation&&c.escalation.active?`<span class="flag red">Escalated</span>`:""}${highRisk(c)?`<span class="flag amber">High-risk</span>`:""}${dueLabel(c)}</div>
+  </button>`;
+}
+function renderList(){
+  const q=QUEUES.find(x=>x.id===queue)||QUEUES[0], s=qText.trim().toLowerCase();
+  const list=cases.filter(q.m).filter(c=>!fCat||c.category===fCat).filter(c=>!fUnit||tid(c.unit)===fUnit)
+    .filter(c=>!s||[c.ref,c.title,(c.customer||{}).name].join(" ").toLowerCase().includes(s))
+    .sort((a,b)=>OPEN(a.status)&&OPEN(b.status)?minRemain(a)-minRemain(b)||String(b.updatedAt).localeCompare(String(a.updatedAt)):String(b.updatedAt).localeCompare(String(a.updatedAt)));
+  $("#items").innerHTML=!loaded?`<div class="empty">Loading cases…</div>`:list.length?list.map(itemHtml).join(""):
+    cases.length?`<div class="empty"><b>Nothing in ${esc(q.label.toLowerCase())}</b>Try another queue or clear the filters.</div>`:`<div class="empty"><b>No cases yet</b>Use “Register case” to log the first one.</div>`;
+}
+
+/* ---------- Case page ---------- */
+function renderDetail(force){
+  const el=$("#detail"); if(!el||view!=="cases") return;
+  if(!force&&el.contains(document.activeElement)&&/^(INPUT|TEXTAREA|SELECT)$/.test(document.activeElement.tagName)){ pendingDetail=true; return; }
+  pendingDetail=false;
+  $("#work").classList.toggle("sel",!!selRef);
+  const c=cur();
+  if(!c){ el.innerHTML=`<div class="empty" style="padding-top:60px"><b>Pick a case</b>Queues are ordered by the clock with the least working time left.</div>`; return; }
+  const y=el.scrollTop; el.innerHTML=caseHtml(c); el.scrollTop=y;
+}
+function probsHtml(c,to){ if(to==="routed_to_unit"&&problems[c.ref+">"+to]){ problems[c.ref+">"+to]=guard({...c,unit:dv(c.ref,"unit",c.unit)},to); } const p=problems[c.ref+">"+to]; return p&&p.length?`<ul class="probs" role="alert">${p.map(x=>`<li>${esc(x)}</li>`).join("")}</ul>`:""; }
+function trackHtml(c){
+  const cmp=catOf(c).complaint;
+  const steps=[["new","New"],["routed_to_unit","Routed"],["unit_input_pending","Unit input"],["evaluator_review","Evaluator"],["rca_complete","RCA complete"],["resolved","Resolved"]];
+  const pos={new:0,routed_to_unit:1,unit_input_pending:2,rework_requested:2,evaluator_review:3,rca_complete:4,resolved:5,closed_duplicate:5}[c.status];
+  const li=steps.map(([s,l],i)=>{
+    let k=i<pos?"done":i===pos?"cur":"";
+    if(c.status==="resolved"&&i===5) k="done";
+    if(!cmp&&(i>=2&&i<=4)) k+=" skip";
+    if(s==="evaluator_review"&&cmp) k+=" gate";
+    if(c.status==="rework_requested"&&i===2) k+=" rw";
+    const lab=c.status==="closed_duplicate"&&i===5?"Duplicate":c.status==="rework_requested"&&i===2?"Rework":l;
+    return `<li class="${k}"><span class="d" aria-hidden="true"></span>${esc(lab)}</li>`;
+  }).join("");
+  return `<div class="track" role="img" aria-label="Lifecycle: ${esc(SL[c.status])}"><ol>${li}</ol>${c.reworkCount?`<div class="loopnote">Returned for rework ${c.reworkCount} time${c.reworkCount>1?"s":""}</div>`:""}${!cmp?`<div class="loopnote" style="color:var(--ink-2)">${esc(catOf(c).name)} is not a complaint category, so the unit call and evaluator gate don't apply.</div>`:""}</div>`;
+}
+function clocksHtml(c){
+  const ck=c.clocks||{}; const keys=["ack","firstCall","unitAction","rework","resolution"].filter(k=>ck[k]&&ck[k].due);
+  if(!keys.length) return "";
+  return `<div class="clocks">${keys.map(k=>{const v=ck[k],s=clockState(v);
+    const cls=s.s==="over"||s.s==="breached"?"over":s.s==="met"?"met":s.s==="void"?"idle":"";
+    const val=s.s==="run"?fmtWM(s.remain)+" left":s.s==="over"?"Overdue by "+fmtWM(-s.remain):s.label;
+    return `<div class="clk ${cls}"><div class="k">${esc(CLOCK_LABEL[k])}</div><div class="v">${esc(val)}</div><div class="k">Due ${fmt(v.due)}</div></div>`;}).join("")}</div>`;
+}
+function sectCls(c,n){
+  const ord={new:1,routed_to_unit:2,unit_input_pending:3,rework_requested:3,evaluator_review:4,rca_complete:5,resolved:6,closed_duplicate:6}[c.status];
+  return n<ord?"done":n===ord?"cur":"lock";
+}
+function contactHtml(c){
+  const cu=c.customer||{}, can=canSeeContact(c), show=revealed[c.ref];
+  const em=show?cu.email:maskEmail(cu.email), mo=show?cu.mobile:maskPhone(cu.mobile);
+  return `${esc(cu.name||"Unnamed")}${cu.provisional?` <span class="flag">Provisional customer</span>`:""}${em?`, ${esc(em)}`:""}${mo?`, ${esc(mo)}`:""}${(cu.email||cu.mobile)&&can&&!show?` <button class="btn link" data-act="reveal">Show contact</button>`:""}`;
+}
+function caseHtml(c){
+  const cat=catOf(c);
+  const rr=riskReasons(c);
+  return `
+  <button class="btn sm back" data-act="back">Back to list</button>
+  <div class="ch"><div>
+    <div class="ref">${esc(c.ref)}</div>
+    <h2>${esc(c.title)}</h2>
+    <div class="facts"><span><b>${esc(cat.name)}</b></span><span>Priority <b>${esc(c.priority)}</b></span><span>${esc(c.channel)}</span>${c.lob?`<span>LOB <b>${esc(c.lob)}</b></span>`:""}<span>${esc(c.branch)}</span>${c.unit?`<span>Team <b>${esc(teamName(c.unit))}</b></span>`:""}<span>Owner <b>${esc(c.ownerId?nameOf(c.ownerId):"Unassigned")}</b></span></div>
+    <div class="facts"><span>Customer: ${contactHtml(c)}</span></div>
+    <div class="flags">${cat.complaint?`<span class="flag blue">Complaint</span>`:""}${cat.regulatory?`<span class="flag red">Regulatory</span>`:""}${c.escalation&&c.escalation.active?`<span class="flag red">Escalated to ${esc(c.escalation.team)}</span>`:""}${rr.length?`<span class="flag amber">High-risk: ${esc(rr.join(", "))}</span>`:""}${typeof c.sentiment==="number"?`<span class="flag">Sentiment ${c.sentiment.toFixed(2)}</span>`:""}${c.duplicateOf?`<span class="flag">Duplicate of ${esc(c.duplicateOf)}</span>`:""}</div>
+  </div><span class="pill s-${c.status}" style="font-size:13px">${esc(SL[c.status])}</span></div>
+  ${trackHtml(c)}
+  ${clocksHtml(c)}
+  ${busy[c.ref]?`<div class="callout blue" style="margin-bottom:12px"><span class="spin"></span>${esc(busy[c.ref])}</div>`:""}
+  <div class="layout"><div>
+    ${s1Intake(c)}${s2Route(c)}${cat.complaint?s3Unit(c)+s4Eval(c):""}${s5Resolve(c)}
+  </div><div class="side">${sideHtml(c)}</div></div>`;
+}
+
+/* section 1: intake & interaction QA */
+function s1Intake(c){
+  const r=c.ref, edit=c.status==="new"&&(isMgr()||has("maker")), cat=catOf(c);
+  const fields=edit?`
+    <div class="g2">
+      <label class="f"><span>Category</span><select data-d="category">${opts(cfg.categories.filter(x=>x.active||x.code===c.category).map(x=>({v:x.code,l:x.name})),dv(r,"category",c.category))}</select></label>
+      <label class="f"><span>Priority</span><select data-d="priority">${opts(cfg.priorities,dv(r,"priority",c.priority))}</select></label>
+      <label class="f"><span>LOB</span><select data-d="lob">${opts(cfg.lobs,dv(r,"lob",c.lob),"Not set")}</select></label>
+      <label class="f"><span>Branch</span><select data-d="branch">${opts(cfg.branches,dv(r,"branch",c.branch))}</select></label>
+    </div>
+    <label class="f"><span>Title</span><input type="text" data-d="title" value="${esc(dv(r,"title",c.title))}"></label>
+    <label class="f"><span>Description</span><textarea data-d="description">${esc(dv(r,"description",c.description))}</textarea></label>
+    <div class="row"><button class="btn sm" data-act="saveIntake">Save changes</button><span class="sm muted">Changing the category recomputes its clocks.</span></div>`
+  :`<dl class="kv"><dt>Description</dt><dd>${esc(c.description)}</dd>${c.advisor&&c.advisor.name?`<dt>Advisor</dt><dd>${esc(c.advisor.name)}</dd>`:""}<dt>Registered</dt><dd>${fmt(c.openedAt)} by ${esc(nameOf(c.createdBy))}</dd></dl>`;
+  const ev=(c.interactions||[]).map((x,i)=>`<div class="box"><div class="h"><span><b>${esc(QA_CHANNELS[x.channel]||x.channel)}</b>${x.at?", "+fmt(x.at):""}${x.callId?`, call ${esc(x.callId)}`:""}</span><span>${safeUrl(x.recordingUrl)?`<a href="${esc(safeUrl(x.recordingUrl))}" target="_blank" rel="noopener">Recording</a>`:""}${edit?` <button class="btn link" data-act="delEv" data-i="${i}">Remove</button>`:""}</span></div>${x.content?`<pre>${esc(x.content)}</pre>`:`<span class="sm muted">No transcript. The AI audit needs the text of the call, thread or email.</span>`}</div>`).join("");
+  const addEv=edit&&cat.complaint?`<details${(c.interactions||[]).length?"":" open"}><summary class="sm" style="cursor:pointer;font-weight:600">Attach the original staff interaction</summary><div class="stack" style="margin-top:10px">
+      <div class="g3"><label class="f"><span>Channel</span><select data-d="ev.channel">${opts(Object.entries(QA_CHANNELS).map(([v,l])=>({v,l})),dv(r,"ev.channel","call"))}</select></label>
+      <label class="f"><span>When</span><input type="datetime-local" data-d="ev.at" value="${esc(dv(r,"ev.at",""))}"></label>
+      <label class="f"><span>3CX call ID</span><input type="text" data-d="ev.callId" value="${esc(dv(r,"ev.callId",""))}"></label></div>
+      <label class="f"><span>Transcript, WhatsApp thread with timestamps, or the email exchange</span><textarea data-d="ev.content" style="min-height:110px">${esc(dv(r,"ev.content",""))}</textarea></label>
+      <label class="f"><span>Recording link</span><input type="url" placeholder="https://" data-d="ev.rec" value="${esc(dv(r,"ev.rec",""))}"></label>
+      <div class="row"><button class="btn sm" data-act="addEv">Attach interaction</button></div></div></details>`:"";
+  let qa="";
+  if(cat.complaint){
+    const q=c.interactionQA, s=c.aiQA;
+    if(q&&q.none) qa=`<div class="callout"><b>No identifiable staff interaction</b>${esc(q.reason)}. Recorded by ${esc(nameOf(q.by))}, ${fmt(q.at)}.</div>`;
+    else if(q) qa=qaCard(q,"Interaction QA recorded by "+nameOf(q.by)+", "+fmt(q.at)+(q.fromAi?" (AI suggestion confirmed)":""));
+    if(edit){
+      if(s&&!q) qa+=`<div class="sugg"><b>AI suggestion, not yet recorded</b>${qaCard(s,"Model output "+fmt(s.at)+". Check the evidence quotes before recording.")}<div class="row"><button class="btn sm ok" data-act="acceptQA">Record this result</button><button class="btn sm" data-act="manualQA">Edit before recording</button></div></div>`;
+      const n=(c.interactions||[]).length;
+      qa+=`<div class="row">${sample&&n?`<button class="btn sm primary" data-act="runQA"${busy[r]?" disabled":""}>${s||q?"Run AI audit again":"Run AI audit"}</button>`:""}${n?`<button class="btn sm" data-act="manualQA">${q?"Edit QA result":"Enter QA result"}</button>`:""}${!q?`<button class="btn sm" data-act="noneQA">No staff interaction</button>`:""}</div>`;
+      if((drafts[r]||{})._qaForm) qa+=qaForm(c);
+      if((drafts[r]||{})._noneForm) qa+=`<div class="box stack"><label class="f"><span>Why is there no staff interaction to audit?</span><input type="text" data-d="qa.noneReason" value="${esc(dv(r,"qa.noneReason",""))}"></label><div class="row"><button class="btn sm ok" data-act="saveNone">Record</button><button class="btn sm" data-act="noneQA">Cancel</button></div></div>`;
+    }
+  }
+  return `<section class="sect ${sectCls(c,1)}"><header><span class="no">1</span><h3>Intake${cat.complaint?" and interaction QA":""}</h3><span class="own">Maker</span></header><div class="b">
+    ${fields}
+    ${cat.complaint?`<div><b class="sm">Original staff interaction</b> <span class="sm muted">${(c.interactions||[]).length} attached</span></div>${ev}${addEv}${qa}`:""}
+  </div></section>`;
+}
+function qaCard(q,foot){
+  const sc=q.score, cls=sc>=8?"hi":sc>=5?"mid":"lo";
+  return `<div class="qa"><div class="score ${cls}"><div><b>${esc(sc)}</b><small>of 10</small></div></div><div>
+    <div class="row"><span class="pill">Tone: ${esc(q.tone)}</span>${(q.breaches||[]).length?`<span class="flag red">${q.breaches.length} breach${q.breaches.length>1?"es":""}</span>`:`<span class="flag">No breaches</span>`}</div>
+    ${(q.breaches||[]).length?`<ul class="tight sm">${q.breaches.map(b=>`<li><b>${esc(b.breach)}</b>: ${esc(b.evidence)}</li>`).join("")}</ul>`:""}
+    ${(q.coaching||[]).length?`<div class="sm" style="margin-top:6px"><b>Coaching</b><ul class="tight">${q.coaching.map(x=>`<li>${esc(x)}</li>`).join("")}</ul></div>`:""}
+    <div class="sm muted" style="margin-top:4px">${esc(foot)}</div></div></div>`;
+}
+function qaForm(c){
+  const r=c.ref, q=c.interactionQA||c.aiQA||{};
+  const br=(q.breaches||[]).map(b=>b.breach+" | "+b.evidence).join("\n");
+  return `<div class="box stack"><div class="g2">
+    <label class="f"><span>Staff tone</span><select data-d="qa.tone">${opts(TONES,dv(r,"qa.tone",q.tone||"courteous"))}</select></label>
+    <label class="f"><span>Score (1–10)</span><input type="number" min="1" max="10" data-d="qa.score" value="${esc(dv(r,"qa.score",q.score||""))}"></label></div>
+    <label class="f"><span>Breaches, one per line as “breach | quote or timestamp”</span><textarea data-d="qa.breaches">${esc(dv(r,"qa.breaches",br))}</textarea></label>
+    <label class="f"><span>Coaching tips, one per line</span><textarea data-d="qa.coaching">${esc(dv(r,"qa.coaching",(q.coaching||[]).join("\n")))}</textarea></label>
+    <div class="row"><button class="btn sm ok" data-act="saveQA">Record QA result</button><button class="btn sm" data-act="manualQA">Cancel</button></div></div>`;
+}
+
+/* section 2: routing & ownership */
+function s2Route(c){
+  const r=c.ref, cat=catOf(c);
+  let b="";
+  if(c.status==="new"){
+    const can=allowed(c,"routed_to_unit");
+    const unitSel=dv(r,"unit",c.unit);
+    const qaDone=!cat.complaint||!!c.interactionQA;
+    const tick=(ok,txt,extra)=>`<li style="list-style:none;margin:4px 0;display:flex;gap:8px;align-items:baseline;flex-wrap:wrap"><span aria-hidden="true" style="font-weight:700;color:${ok?"var(--green)":"var(--red)"}">${ok?"✓":"✗"}</span><span>${txt}</span>${ok?"":extra||""}</li>`;
+    b=`<div class="g2"><label class="f"><span class="req">Team</span><select data-d="unit">${opts(activeTeams().map(u=>({v:u.id,l:u.name})),tid(unitSel),"Choose team")}</select></label></div>
+      <div class="box"><b class="sm">Before routing</b><ul style="margin:4px 0 0;padding:0" class="sm">
+        ${tick(can,"You hold the Maker or Admin role",`<button class="btn link" data-act="goProfile">See your access</button>`)}
+        ${tick(!!unitSel,"Team chosen")+(unitSel?`<li style="list-style:none;margin:2px 0 0 22px" class="muted">${teamMembers(unitSel).length} team member${teamMembers(unitSel).length===1?"":"s"} in ${esc(teamName(unitSel))} will see it in their Team queue.</li>`:"")}
+        ${cat.complaint?tick(qaDone,"Interaction QA recorded for the original contact",`<span class="row" style="gap:6px"><button class="btn link" data-act="noneQA">Record “no staff interaction”</button><span class="muted">or attach the interaction in section 1</span></span>`):""}
+      </ul></div>
+      ${probsHtml(c,"routed_to_unit")}
+      <div class="row"><button class="btn primary" data-act="route"${can?"":" disabled"}>Route to unit</button></div>
+      ${allowed(c,"closed_duplicate")?`<details${(drafts[r]||{})._dupOpen?" open":""}><summary class="sm" style="cursor:pointer;font-weight:600">Close as duplicate</summary><div class="stack" style="margin-top:10px">
+        <label class="f"><span>Original case</span><select data-d="dupOf">${opts(cases.filter(x=>x.ref!==c.ref&&x.status!=="closed_duplicate").map(x=>({v:x.ref,l:x.ref+": "+x.title.slice(0,60)})),dv(r,"dupOf",""),"Choose the original")}</select></label>
+        <label class="f"><span>Reason</span><input type="text" data-d="dupReason" value="${esc(dv(r,"dupReason",""))}"></label>
+        ${probsHtml(c,"closed_duplicate")}<div class="row"><button class="btn sm warn" data-act="dup">Close as duplicate</button></div></div></details>`:""}`;
+  } else if(c.status==="closed_duplicate"){
+    b=`<p style="margin:0">Closed as a duplicate of <b>${esc(c.duplicateOf)}</b> on ${fmt(c.closedAt)}. All clocks are void.</p>`;
+  } else {
+    const canAssign=isMgr()||unitHead(c);
+    const unitPeople=teamMembers(c.unit).map(([id])=>({v:id,l:nameOf(id)}));
+    b=`<dl class="kv"><dt>Team</dt><dd>${esc(teamName(c.unit))}</dd><dt>Routed</dt><dd>${fmt(c.routedAt)}</dd><dt>Owner</dt><dd>${esc(c.ownerId?nameOf(c.ownerId):"Unassigned")}${c.assignedAt?", since "+fmt(c.assignedAt):""}</dd></dl>
+      ${c.status==="routed_to_unit"?`${probsHtml(c,"unit_input_pending")}<div class="row"><button class="btn primary" data-act="go" data-to="unit_input_pending"${allowed(c,"unit_input_pending")?"":" disabled"}>Accept case</button>${allowed(c,"unit_input_pending")?"":`<span class="sm muted">${c.ownerId?"Assigned to "+esc(nameOf(c.ownerId))+".":"Accepting is for team members of "+esc(teamName(c.unit))+"."}</span>`}</div>`:""}
+      ${c.status==="routed_to_unit"&&!cat.complaint?`<div class="stack"><label class="f"><span>How was it resolved?</span><textarea data-d="ncReason">${esc(dv(r,"ncReason",""))}</textarea></label>${probsHtml(c,"resolved")}<div class="row"><button class="btn ok" data-act="ncResolve"${allowed(c,"resolved")?"":" disabled"}>Resolve</button></div></div>`:""}
+      ${canAssign&&OPEN(c.status)?`<details><summary class="sm" style="cursor:pointer;font-weight:600">${c.ownerId?"Reassign":"Assign owner"}</summary><div class="stack" style="margin-top:10px">
+        <label class="f"><span>Owner in ${esc(teamName(c.unit))}</span><select data-d="assignTo">${opts(unitPeople,dv(r,"assignTo",""),unitPeople.length?"Choose a team member":"No team members yet. Add them in Access.")}</select></label>
+        ${c.ownerId?`<label class="f"><span class="req">Reason for reassignment</span><input type="text" data-d="assignReason" value="${esc(dv(r,"assignReason",""))}"></label>`:""}
+        <div class="row"><button class="btn sm" data-act="assign">${c.ownerId?"Reassign":"Assign"}</button></div></div></details>`:""}`;
+  }
+  return `<section class="sect ${sectCls(c,2)}"><header><span class="no">2</span><h3>Routing and ownership</h3><span class="own">${esc(teamName(c.unit)||"Team")}</span></header><div class="b">${b}</div></section>`;
+}
+
+/* section 3: unit outbound call & input */
+function s3Unit(c){
+  const r=c.ref, owner=c.ownerId===me, editing=c.status==="unit_input_pending"&&owner;
+  const calls=c.unitCalls||[];
+  const cok=callsOk(c);
+  const u=c.unitInput||{};
+  if(["new","routed_to_unit","closed_duplicate"].includes(c.status)) return `<section class="sect lock"><header><span class="no">3</span><h3>Team outbound call and input</h3><span class="own">Case owner</span></header><div class="b"><p style="margin:0">Opens when a unit owner accepts the case.</p></div></section>`;
+  const lastRework=[...(c.reviews||[])].reverse().find(x=>x.decision==="REWORK");
+  const callList=calls.length?`<div class="tbl"><table><thead><tr><th>Attempt</th><th>When</th><th>Result</th><th>3CX call</th><th>Recording</th></tr></thead><tbody>${calls.map((x,i)=>`<tr><td>${i+1}</td><td>${fmt(x.at)}</td><td>${x.connected?`Connected${x.talk?", "+esc(x.talk)+"s":""}`:"Not connected"}${x.note?`<div class="sm muted">${esc(x.note)}</div>`:""}</td><td>${esc(x.callId||"—")}</td><td>${safeUrl(x.recordingUrl)?`<a href="${esc(safeUrl(x.recordingUrl))}" target="_blank" rel="noopener">Open</a>`:"—"}</td></tr>`).join("")}</tbody></table></div>`:`<p class="sm muted" style="margin:0">No call attempts logged yet.</p>`;
+  let b=`${lastRework&&["rework_requested","unit_input_pending"].includes(c.status)?`<div class="callout"><b>Rework requested by ${esc(nameOf(lastRework.by))}, ${fmt(lastRework.at)}</b>${esc(lastRework.reasons)}</div>`:""}
+    <div class="row"><b class="sm">Outbound calls to the client</b>${cok.ok?`<span class="flag blue">Requirement met: ${esc(cok.how)}</span>`:`<span class="flag amber">Needs a connected call with recording, or ${cfg.clocks.attempts} attempts over ${cfg.clocks.attemptDays} working days</span>`}</div>
+    ${callList}`;
+  if(c.status==="rework_requested"){
+    b+=owner?`<label class="f"><span class="req">What will you change?</span><textarea data-d="rwPick">${esc(dv(r,"rwPick",""))}</textarea></label>${probsHtml(c,"unit_input_pending")}<div class="row"><button class="btn primary" data-act="pickRework">Pick up rework</button></div>`:`<p class="sm muted" style="margin:0">Waiting for ${esc(nameOf(c.ownerId))} to pick up the rework.</p>`;
+  } else if(editing){
+    b+=`<details${calls.length?"":" open"}><summary class="sm" style="cursor:pointer;font-weight:600">Log a call attempt</summary><div class="stack" style="margin-top:10px">
+        <div class="g3"><label class="f"><span>When</span><input type="datetime-local" data-d="call.at" value="${esc(dv(r,"call.at",""))}"></label>
+        <label class="f"><span>Connected?</span><select data-d="call.connected">${opts([{v:"yes",l:"Yes, spoke to the client"},{v:"no",l:"No answer / voicemail"}],dv(r,"call.connected","yes"))}</select></label>
+        <label class="f"><span>Talk time (seconds)</span><input type="number" min="0" data-d="call.talk" value="${esc(dv(r,"call.talk",""))}"></label></div>
+        <div class="g2"><label class="f"><span>3CX call history ID</span><input type="text" data-d="call.callId" value="${esc(dv(r,"call.callId",""))}"></label>
+        <label class="f"><span>Recording link</span><input type="url" placeholder="https://" data-d="call.rec" value="${esc(dv(r,"call.rec",""))}"></label></div>
+        <label class="f"><span>Note</span><input type="text" data-d="call.note" value="${esc(dv(r,"call.note",""))}"></label>
+        <div class="row"><button class="btn sm" data-act="logCall">Log attempt</button><span class="sm muted">Automatic matching to the 3CX leg isn't connected here, so enter the call ID.</span></div></div></details>
+      <div class="g2"><label class="f"><span class="req">Call outcome</span><select data-d="ui.outcome">${opts(cfg.outcomes,dv(r,"ui.outcome",u.outcome),"Choose outcome")}</select></label></div>
+      ${dv(r,"ui.outcome",u.outcome)==="Client Dissatisfied / Demanded Escalation"?`<div class="callout red"><b>Escalation</b>Use “Escalate” in the side panel to send this to a department head with a reason.</div>`:""}
+      <label class="f"><span class="req">What was discussed and agreed</span><textarea data-d="ui.notes">${esc(dv(r,"ui.notes",u.notes))}</textarea></label>
+      <label class="f"><span class="req">Unit action summary</span><textarea data-d="ui.action">${esc(dv(r,"ui.action",u.action))}</textarea></label>
+      ${probsHtml(c,"evaluator_review")}
+      <div class="row"><button class="btn sm" data-act="saveUnit">Save input</button><button class="btn primary" data-act="submitUnit">Submit to evaluator</button></div>`;
+  } else if(c.status==="unit_input_pending"){
+    b+=`<p class="sm muted" style="margin:0">${esc(nameOf(c.ownerId))} is working on the unit input.</p>`;
+  } else {
+    b+=`<dl class="kv"><dt>Outcome</dt><dd>${esc(u.outcome)}</dd><dt>Discussed</dt><dd>${esc(u.notes)}</dd><dt>Action</dt><dd>${esc(u.action)}</dd><dt>Recorded by</dt><dd>${esc(nameOf(u.by))}, ${fmt(u.at)}</dd></dl>`;
+  }
+  return `<section class="sect ${sectCls(c,3)}"><header><span class="no">3</span><h3>Team outbound call and input</h3><span class="own">Case owner</span></header><div class="b">${b}</div></section>`;
+}
+
+/* section 4: evaluator gate */
+function s4Eval(c){
+  const r=c.ref, reviews=c.reviews||[];
+  const past=reviews.length?`<div class="stack">${reviews.map(x=>`<div class="box"><div class="h"><span><b>${x.decision==="ACCEPT"?"Accepted":"Returned for rework"}</b> by ${esc(nameOf(x.by))}</span><span>${fmt(x.at)}</span></div>${x.reasons?`<pre>${esc(x.reasons)}</pre>`:""}</div>`).join("")}</div>`:"";
+  let b="";
+  if(c.status==="evaluator_review"){
+    if(has("checker")){
+      const why=independence(c);
+      if(why.length) b=`<div class="callout red"><b>You can't review this case</b>${esc(why.join("; "))}. Another Checker must review it. Attempts are logged.</div>${past}`;
+      else{
+        const rca=c.rca||{}, l1=dv(r,"rca.l1",rca.l1), l2s=(cfg.rca[l1]||[]);
+        const q=c.interactionQA, sug=q&&!q.none?((q.breaches||[]).length?3:q.score<=4||["dismissive","defensive"].includes(q.tone)?2:q.score<=6?1:0):0;
+        b=`${q&&!q.none?`<div class="sm">Interaction QA: score <b>${esc(q.score)}</b>, tone <b>${esc(q.tone)}</b>, ${(q.breaches||[]).length} breach(es).</div>`:""}
+          <dl class="kv"><dt>Calls</dt><dd>${esc(callsOk(c).how||"")}</dd><dt>Outcome</dt><dd>${esc((c.unitInput||{}).outcome)}</dd><dt>Discussed</dt><dd>${esc((c.unitInput||{}).notes)}</dd><dt>Action</dt><dd>${esc((c.unitInput||{}).action)}</dd></dl>
+          <div class="gate">
+            <div class="a"><h4>Accept</h4>
+              <div class="g2"><label class="f"><span class="req">RCA category</span><select data-d="rca.l1">${opts(Object.keys(cfg.rca),l1,"Choose")}</select></label>
+              <label class="f"><span>RCA sub-category</span>${l2s.length?`<select data-d="rca.l2">${opts(l2s,dv(r,"rca.l2",rca.l2),"Choose")}</select>`:`<input type="text" data-d="rca.l2" value="${esc(dv(r,"rca.l2",rca.l2))}">`}</label></div>
+              <label class="f"><span class="req">RCA note</span><textarea data-d="rca.note">${esc(dv(r,"rca.note",rca.note))}</textarea></label>
+              <label class="f"><span>Preventive action</span><input type="text" data-d="rca.prev" value="${esc(dv(r,"rca.prev",rca.preventive))}"></label>
+              <div class="g2"><label class="f"><span class="req">Validity</span><select data-d="validity">${opts(VALIDITY,dv(r,"validity",c.validity),"Choose")}</select></label>
+              <label class="f"><span class="req">Consequence level <span class="prop">Recorded only until D8 is signed</span></span><select data-d="level">${opts(Object.entries(CONSEQ).map(([v,l])=>({v,l:l+(+v===sug&&q&&!q.none?" (suggested)":"")})),dv(r,"level",""),"Choose")}</select></label></div>
+              ${probsHtml(c,"rca_complete")}
+              <button class="btn ok" data-act="accept">Accept</button></div>
+            <div class="r"><h4>Return for rework</h4>
+              <label class="f"><span class="req">Reasons: exactly what the unit must redo or provide</span><textarea data-d="rwReason" style="min-height:130px">${esc(dv(r,"rwReason",""))}</textarea></label>
+              ${probsHtml(c,"rework_requested")}
+              <button class="btn warn" data-act="rework">Return for rework</button></div>
+          </div>${past}`;
+      }
+    } else b=`<p style="margin:0">Waiting at the evaluator gate. No complaint skips this review.</p>${past}`;
+  } else if(["rca_complete","resolved"].includes(c.status)&&c.rca){
+    b=`<dl class="kv"><dt>RCA</dt><dd>${esc(c.rca.l1)}${c.rca.l2?" / "+esc(c.rca.l2):""}</dd><dt>Note</dt><dd>${esc(c.rca.note)}</dd>${c.rca.preventive?`<dt>Preventive</dt><dd>${esc(c.rca.preventive)}</dd>`:""}<dt>Validity</dt><dd>${esc(c.validity)}</dd><dt>Consequence</dt><dd>${esc(CONSEQ[c.consequenceLevel||0])}</dd></dl>${past}`;
+  } else b=past||`<p style="margin:0">Opens when the unit submits its input.</p>`;
+  return `<section class="sect ${sectCls(c,4)}"><header><span class="no">4</span><h3>Evaluator review and RCA</h3><span class="own">Checker</span></header><div class="b">${b}</div></section>`;
+}
+
+/* section 5: controlled response & resolution */
+function s5Resolve(c){
+  const r=c.ref, cat=catOf(c), n=cat.complaint?5:3;
+  const pub=c.channel==="Google Review"||c.channel==="Social";
+  let b="";
+  if(c.status==="resolved"){
+    b=`${c.response?`<div class="box"><div class="h"><span><b>Controlled response</b> by ${esc(nameOf(c.response.by))}</span><span>${fmt(c.response.at)}</span></div><pre>${esc(c.response.text)}</pre></div>`:""}${c.resolution?`<dl class="kv"><dt>Resolution</dt><dd>${esc(c.resolution)}</dd></dl>`:""}
+      <p class="sm muted" style="margin:0">Resolved ${fmt(c.resolvedAt)}. All clocks stopped.</p>
+      ${isMgr()&&Date.now()-new Date(c.resolvedAt)<=cfg.clocks.reopenDays*864e5?`<details><summary class="sm" style="cursor:pointer;font-weight:600">Reopen</summary><div class="stack" style="margin-top:10px"><label class="f"><span class="req">Reason</span><input type="text" data-d="reopenReason" value="${esc(dv(r,"reopenReason",""))}"></label>${probsHtml(c,"unit_input_pending")}<div class="row"><button class="btn sm warn" data-act="reopen">Reopen to unit</button><span class="sm muted">Starts a new unit-action clock.</span></div></div></details>`:""}`;
+  } else if(c.status==="closed_duplicate"){ return ""; }
+  else if(!cat.complaint){ return ""; }
+  else {
+    const canDraft=isMgr()||has("maker")||has("checker");
+    if(!canDraft) b=`<p style="margin:0">The Maker records the controlled response after the Checker accepts.</p>`;
+    else{
+      b=`${pub?`<div class="callout"><b>Public reply</b>This goes on ${esc(c.channel)}. Leave out the customer's name, contact details and case details.</div>`:""}
+        <label class="f"><span>Response to the customer</span><textarea data-d="resp" style="min-height:160px"${busy[r]?" readonly":""}>${esc(dv(r,"resp",c.responseDraft))}</textarea></label>
+        ${sample?`<div class="pbar"><input type="text" data-d="prompt" placeholder="Tell Claude how to change the draft" aria-label="Prompt" value="${esc(dv(r,"prompt",""))}"><button class="btn sm primary" data-act="applyPrompt"${busy[r]?" disabled":""}>Apply prompt</button></div><div class="chips">${CHIPS.map(p=>`<button class="chip" data-act="chip" data-p="${esc(p)}">${esc(p)}</button>`).join("")}</div>`:""}
+        <div class="row"><button class="btn sm" data-act="saveDraft">Save draft</button>${undo[r]!=null?`<button class="btn sm" data-act="undoDraft">Undo last prompt</button>`:""}</div>
+        <p class="sm muted" style="margin:0">Review every AI-refined draft. Don't admit liability, promise compensation or cite law unless verified and approved by Legal.</p>
+        ${c.status==="rca_complete"?`${probsHtml(c,"resolved")}<div class="row"><button class="btn ok" data-act="resolve"${allowed(c,"resolved")?"":" disabled"}>Record response and resolve</button>${allowed(c,"resolved")?"":`<span class="sm muted">Resolving is for Makers and Admins.</span>`}</div>`:`<p class="sm muted" style="margin:0">You can draft now. Resolving opens once the evaluator accepts.</p>`}`;
+    }
+  }
+  return `<section class="sect ${c.status==="resolved"?"done":c.status==="rca_complete"?"cur":"lock"}"><header><span class="no">${n}</span><h3>${cat.complaint?"Controlled response and resolution":"Resolution"}</h3><span class="own">Q&amp;G officer</span></header><div class="b">${b}</div></section>`;
+}
+
+/* side panel */
+function sideHtml(c){
+  const r=c.ref, h=isHandler(c), open=OPEN(c.status);
+  const canEsc=open&&(c.ownerId===me||has("maker")||isMgr());
+  const esc_=c.escalation||{};
+  const links=(c.links||[]).map(l=>`<li>${esc(SOURCES[l.source]||l.source)} <b>${esc(l.id)}</b>${l.date?`, ${fmtD(l.date)}`:""}</li>`).join("");
+  const atts=(c.attachments||[]).map(a=>`<li><a href="/_blob/${esc(a.id)}" target="_blank" rel="noopener">${esc(a.name)}</a> <span class="muted">${Math.max(1,Math.round(a.size/1024))} KB</span></li>`).join("");
+  const acts=(c.actions||[]).slice().reverse().map(a=>`<li><b>${esc(a.type)}</b>${a.customerFacing?` <span class="flag">Customer-facing</span>`:""} <span class="n">${esc(nameOf(a.by))}, ${fmt(a.at)}</span><span class="x">${esc(a.text)}</span></li>`).join("");
+  const evs=events.slice().sort((a,b)=>String(b.at).localeCompare(String(a.at)));
+  const evLabel=e=>e.type==="STATUS"||e.type==="REOPEN"||e.type==="CLOSE"?`${esc(SL[e.from]||e.from)} → ${esc(SL[e.to]||e.to)}`:e.type==="CREATED"?"Case registered":esc(e.type.replace(/_/g," ").toLowerCase().replace(/^./,s=>s.toUpperCase()));
+  return `
+  ${open?`<section class="sect"><header><h3>Escalation</h3></header><div class="b">
+    ${esc_.active?`<div class="callout red"><b>Escalated to ${esc(esc_.team)}</b>${esc(esc_.reason)}. ${esc(nameOf(esc_.by))}, ${fmt(esc_.at)}. The clock keeps running.</div>`:`<p class="sm muted" style="margin:0">Not escalated.${resPct(c)>=cfg.clocks.escalationPct?" The resolution clock has passed the escalation threshold.":""}</p>`}
+    ${canEsc&&!esc_.active?`<details><summary class="sm" style="cursor:pointer;font-weight:600">Escalate</summary><div class="stack" style="margin-top:8px">
+      <label class="f"><span>To</span><select data-d="esc.team">${opts(["Q&G management",...activeTeams().map(u=>u.name)],dv(r,"esc.team","Q&G management"))}</select></label>
+      <label class="f"><span class="req">Reason</span><input type="text" data-d="esc.reason" value="${esc(dv(r,"esc.reason",""))}"></label>
+      <button class="btn sm warn" data-act="escalate">Escalate</button></div></details>`:""}
+    ${esc_.active&&isMgr()?`<div class="row"><input type="text" data-d="esc.clear" placeholder="Reason for clearing" value="${esc(dv(r,"esc.clear",""))}"><button class="btn sm" data-act="deescalate">Clear</button></div>`:""}
+  </div></section>`:""}
+  <section class="sect"><header><h3>Actions and notes</h3></header><div class="b">
+    ${h&&open?`<div class="stack"><div class="g2"><label class="f"><span>Type</span><select data-d="act.type">${opts(ACTION_TYPES.concat(["NOTE"]),dv(r,"act.type","NOTE"))}</select></label><label class="chk" style="align-self:end"><input type="checkbox" data-d="act.cf"${dv(r,"act.cf",false)?" checked":""}><span class="sm">Customer-facing</span></label></div>
+      <textarea data-d="act.text" placeholder="What was done or noted" style="min-height:60px">${esc(dv(r,"act.text",""))}</textarea><div class="row"><button class="btn sm" data-act="addAction">Add</button></div></div>`:""}
+    ${acts?`<ul class="log">${acts}</ul>`:`<p class="sm muted" style="margin:0">No actions recorded.</p>`}
+  </div></section>
+  <section class="sect"><header><h3>Linked records</h3></header><div class="b">
+    ${links?`<ul class="tight sm">${links}</ul>`:`<p class="sm muted" style="margin:0">No linked source records.</p>`}
+    ${h&&open?`<details><summary class="sm" style="cursor:pointer;font-weight:600">Link a record</summary><div class="stack" style="margin-top:8px"><select data-d="ln.src">${opts(Object.entries(SOURCES).map(([v,l])=>({v,l})),dv(r,"ln.src","ZOHO_TICKET"))}</select><input type="text" data-d="ln.id" placeholder="Source ID" value="${esc(dv(r,"ln.id",""))}"><button class="btn sm" data-act="addLink">Link</button></div></details>`:""}
+  </div></section>
+  <section class="sect"><header><h3>Attachments</h3></header><div class="b">
+    ${atts?`<ul class="tight sm">${atts}</ul>`:`<p class="sm muted" style="margin:0">No files.</p>`}
+    ${h&&open&&assets?`<label class="btn sm" style="justify-self:start">Upload file<input type="file" data-act-file="1" hidden></label>`:""}
+  </div></section>
+  <section class="sect"><header><h3>Event log</h3><span class="own">Append-only</span></header><div class="b">
+    ${evs.length?`<ul class="log">${evs.map(e=>`<li class="${["STATUS","REOPEN","CLOSE","CREATED"].includes(e.type)?"st":e.type==="INDEPENDENCE_REFUSED"?"bad":""}"><b>${evLabel(e)}</b> <span class="n">${esc(nameOf(e.by))}, ${fmt(e.at)}</span>${e.reason?`<span class="x">${esc(e.reason)}</span>`:""}</li>`).join("")}</ul>`:`<p class="sm muted" style="margin:0">Loading events…</p>`}
+  </div></section>`;
+}
+
+/* ---------- Register ---------- */
+let regState={};
+function renderRegister(){
+  const s=regState, can=isMgr()||has("maker");
+  const ai=s.ai;
+  $("#regPage").innerHTML=`
+  <h2>Register case</h2>
+  <p class="muted" style="margin:0 0 16px">${can?"Log the case from the moment it's known. AI can suggest the category, priority and sentiment; you confirm or override them.":"Registering is for Makers and Admins. Ask an Admin for access, or switch “Acting as” to a Maker."}</p>
+  <div class="stack" style="max-width:820px">
+    <div class="card"><h3>Customer</h3><div class="in stack">
+      <div class="g3"><label class="f"><span class="req">Name</span><input type="text" data-r="cName" value="${esc(s.cName||"")}"></label>
+      <label class="f"><span>Email</span><input type="email" data-r="cEmail" value="${esc(s.cEmail||"")}"></label>
+      <label class="f"><span>Mobile</span><input type="text" data-r="cMobile" placeholder="+971" value="${esc(s.cMobile||"")}"></label></div>
+      <p class="sm muted" style="margin:0">Lookup against the IMCRM customer master isn't connected in this tool, so every customer is held as provisional until the identity resolver is built.</p>
+    </div></div>
+    <div class="card"><h3>Case</h3><div class="in stack">
+      <div class="g3"><label class="f"><span class="req">Channel</span><select data-r="channel">${opts(cfg.channels,s.channel,"Choose")}</select></label>
+      <label class="f"><span>Branch</span><select data-r="branch">${opts(cfg.branches,s.branch||cfg.branches[0])}</select></label>
+      <label class="f"><span>LOB</span><select data-r="lob">${opts(cfg.lobs,s.lob,"Not set")}</select></label></div>
+      <label class="f"><span class="req">Title</span><input type="text" data-r="title" value="${esc(s.title||"")}"></label>
+      <label class="f"><span class="req">Description</span><textarea data-r="description" style="min-height:120px" placeholder="What the customer reported, in their words where possible">${esc(s.description||"")}</textarea></label>
+      ${sample?`<div class="row"><button class="btn sm primary" data-ract="suggest"${s.busy?" disabled":""}>${s.busy?`<span class="spin"></span>Suggesting…`:"Suggest category, priority and sentiment"}</button></div>`:""}
+      ${ai?`<div class="sugg"><b>AI suggestion</b>
+        ${ai.category&&ai.confidence>=0.6?`<div>Category <b>${esc(catName(ai.category))}</b> <span class="muted">(confidence ${Math.round(ai.confidence*100)}%)</span></div>`:`<div>Confidence below 60%, so the category is left for you. Top matches: ${(ai.top3||[]).map(t=>`<button class="chip" data-ract="pickCat" data-v="${esc(t.category)}">${esc(catName(t.category))} ${Math.round((t.confidence||0)*100)}%</button>`).join(" ")}</div>`}
+        <div>Sentiment <b>${ai.sentiment.toFixed(2)}</b>; priority <b>${esc(ai.priority)}</b> <span class="muted">(category default${ai.sentiment<=-0.5?", raised for negative sentiment":""})</span></div>
+        <div class="row"><button class="btn sm ok" data-ract="acceptAi">Use these</button></div></div>`:""}
+      <div class="g2"><label class="f"><span class="req">Category</span><select data-r="category">${opts(cfg.categories.filter(c=>c.active).map(c=>({v:c.code,l:c.name})),s.category,"Choose")}</select></label>
+      <label class="f"><span class="req">Priority</span><select data-r="priority">${opts(cfg.priorities,s.priority,"Choose")}</select></label></div>
+      <div class="g2"><label class="f"><span>Attributed advisor</span><select data-r="advisorId">${opts(Object.entries(members).filter(([,m])=>m.active!==false).sort((a,b)=>(b[1].advisor?1:0)-(a[1].advisor?1:0)||String(a[1].name).localeCompare(b[1].name)).map(([id,m])=>({v:id,l:m.name+((m.teams||[]).length?" ("+m.teams.map(teamName).join(", ")+")":"")})),s.advisorId,"None or not listed")}</select></label>
+      ${s.advisorId?"":`<label class="f"><span>Advisor not in the directory</span><input type="text" data-r="advisor" value="${esc(s.advisor||"")}" placeholder="Name, if known"></label>`}</div>
+    </div></div>
+    <div class="card"><h3>Source record</h3><div class="in stack">
+      <div class="g3"><label class="f"><span>Source</span><select data-r="srcType">${opts(Object.entries(SOURCES).filter(([k])=>k!=="CEM_CASE").map(([v,l])=>({v,l})),s.srcType,"None")}</select></label>
+      <label class="f"><span>Source ID</span><input type="text" data-r="srcId" value="${esc(s.srcId||"")}" placeholder="Ticket, review or call ID"></label>
+      <label class="f"><span>Source date</span><input type="date" data-r="srcDate" value="${esc(s.srcDate||"")}"></label></div>
+    </div></div>
+    ${s.probs&&s.probs.length?`<ul class="probs">${s.probs.map(p=>`<li>${esc(p)}</li>`).join("")}</ul>`:""}
+    <div class="row"><button class="btn primary" data-ract="create"${can&&!s.saving?"":" disabled"}>${s.saving?"Registering…":"Register case"}</button><button class="btn" data-ract="reset">Clear form</button></div>
+  </div>`;
+}
+const catName=code=>(cfg.categories.find(c=>c.code===code)||{name:code}).name;
+
+/* ---------- Rules ---------- */
+function renderRules(){
+  const k=cfg.clocks, cal=cfg.calendar;
+  const rows=[
+    ["New","Routed to unit","Maker","Acknowledgement clock ("+k.ackH+" working h) stops; unit-action clock ("+k.unitActionD+" working days) starts","Unit set; for complaints, interaction QA recorded (or no staff interaction, with reason)"],
+    ["New","Closed as duplicate","Maker","All clocks void","Reason; link to the original case"],
+    ["Routed to unit","Unit input pending","Team member (accepts) or team head (assigns)","First-call clock ("+k.firstCallD+" working day) starts","Owner is a member of the case's team"],
+    ["Routed to unit","Resolved","Case owner, Maker","All clocks stop","Non-complaint categories only; resolution recorded"],
+    ["Unit input pending","Evaluator review","Case owner","Unit-action clock stops","Connected call with recording, or "+k.attempts+" attempts over "+k.attemptDays+" working days; outcome, notes and action recorded"],
+    ["Evaluator review","Rework requested","Checker","Rework clock ("+k.reworkD+" working days) starts","Reasons; checker independent of the owner, the team and the advisor"],
+    ["Rework requested","Unit input pending","Case owner","—","Rework recorded"],
+    ["Evaluator review","RCA complete","Checker","—","RCA category and note, validity, consequence level; independence"],
+    ["RCA complete","Resolved","Maker","All clocks stop","Controlled response recorded"],
+    ["Resolved","Unit input pending (reopen)","Admin","New unit-action clock","Within "+k.reopenDays+" days; reason"]
+  ];
+  $("#rulesPage").innerHTML=`<h2>Rules</h2>
+  <p class="muted">The complaint state machine adopted from the Q&amp;G CMI blueprint (FRD v1.1 §6.1). Clock values are the Q&amp;G proposals until signed (BRD D2), and can be changed in Admin.</p>
+  <div class="tbl"><table><thead><tr><th>From</th><th>To</th><th>Who</th><th>Clock effect</th><th>Guard</th></tr></thead><tbody>${rows.map(r=>`<tr>${r.map(x=>`<td>${esc(x)}</td>`).join("")}</tr>`).join("")}</tbody></table></div>
+  <h3>Other rules</h3>
+  <p>Escalation is a flag, not a state: an escalated case keeps its state and clock and appears in the Escalated queue. The case is also flagged when ${k.escalationPct}% of its resolution clock is used. A case is high-risk when sentiment is −0.5 or lower, the category is regulatory, the resolution clock passes the threshold, or the same customer had a case in the same category within 90 days.</p>
+  <p>The event log is append-only: the tool only ever adds events. Evaluator independence refusals are logged. Contact detail is masked by default; showing it is logged.</p>
+  <h3>Working calendar</h3>
+  <div class="tbl"><table><thead><tr><th>Day</th><th>Hours (Dubai)</th></tr></thead><tbody>${[1,2,3,4,5,6,0].map(i=>`<tr><td>${DAYS[i]}</td><td>${cal.week[i]?esc(cal.week[i].o+"–"+cal.week[i].c):"Not a working day"}</td></tr>`).join("")}</tbody></table></div>
+  <p class="sm muted">${(cal.holidays||[]).length?(cal.holidays.length+" public holidays loaded."):"No public holidays loaded yet. Add them in Admin."}</p>`;
+}
+
+/* ---------- Profile ---------- */
+function renderProfile(){
+  const el=$("#profilePage"), canA=isMgr(), ra=realAdmin(), l=linked();
+  const tm=drafts._teams||(drafts._teams=clone(cfg.units));
+  const mlist=Object.entries(members).sort((a,b)=>(a[1].active===false)-(b[1].active===false)||String(a[1].name).localeCompare(b[1].name));
+  const fm=drafts._mem;
+  const signins=Object.keys(people).map(id=>({v:id,l:(names[id]||"Signed-in user …"+id.slice(-4))+(id===uid?" (you)":"")}));
+  const roleChips=(sel)=>ROLES.map(r=>`<label class="chk" style="margin-top:4px"><input type="checkbox" data-mrole="${r}"${sel.includes(r)?" checked":""}><span><b>${esc(ROLE_LABEL[r])}</b> <span class="muted sm">${esc(ROLE_DESC[r])}</span></span></label>`).join("");
+  const teamChips=(sel)=>`<div class="chips">${tm.filter(t=>t.active!==false).map(t=>`<button class="chip${sel.includes(t.id)?" on":""}" data-mteam="${esc(t.id)}" aria-pressed="${sel.includes(t.id)}">${esc(t.name)}</button>`).join("")}</div>`;
+  const form=fm?`<div class="card" id="memForm" style="max-width:860px;margin-top:12px"><h3>${fm.id&&members[fm.id]?"Edit "+esc(members[fm.id].name):"Add a person"}</h3><div class="in stack">
+      <div class="g3"><label class="f"><span class="req">Full name</span><input type="text" data-mf="name" value="${esc(fm.name||"")}"></label>
+      <label class="f"><span>Employee ID</span><input type="text" data-mf="employeeId" value="${esc(fm.employeeId||"")}"></label>
+      <label class="f"><span>Designation</span><input type="text" data-mf="designation" value="${esc(fm.designation||"")}" placeholder="e.g. Motor Renewals Advisor"></label></div>
+      <div class="g3"><label class="f"><span>Work email</span><input type="email" data-mf="email" value="${esc(fm.email||"")}"></label>
+      <label class="f"><span>3CX extension</span><input type="text" data-mf="extension" value="${esc(fm.extension||"")}"></label>
+      <label class="f"><span>Linked sign-in</span><select data-mf="userId">${opts(signins,fm.userId||"","Not linked (directory only)")}</select></label></div>
+      <p class="sm muted" style="margin:0">A person can use the tool once they're linked to a sign-in. People appear in this list after they've opened the tool once. Advisors who don't use the tool can stay unlinked and still be attributed on cases.</p>
+      <label class="chk"><input type="checkbox" data-mf="advisor"${fm.advisor?" checked":""}><span>Advisor: can be attributed on cases</span></label>
+      <div><b class="sm">Teams</b>${teamChips(fm.teams||[])}</div>
+      <div><b class="sm">Roles in this tool</b>${roleChips(fm.roles||[])}</div>
+      <label class="chk"><input type="checkbox" data-mf="active"${fm.active!==false?" checked":""}><span>Active</span></label>
+      ${fm.probs&&fm.probs.length?`<ul class="probs">${fm.probs.map(x=>`<li>${esc(x)}</li>`).join("")}</ul>`:""}
+      <div class="row"><button class="btn primary" data-xact="saveMem">Save person</button><button class="btn" data-xact="cancelMem">Cancel</button></div>
+    </div></div>`:"";
+  el.innerHTML=`<h2>Access</h2>
+  <p class="muted" style="margin:0">Roles say what someone can do. Teams say which cases reach them: a case routed to a team appears in the Team queue of every team member in it, and the team head can assign it.</p>
+  <h3>Your access</h3>
+  <div class="card" style="max-width:860px"><div class="in">
+    ${l?`<dl class="kv"><dt>Directory record</dt><dd>${esc(l[1].name)}${l[1].designation?", "+esc(l[1].designation):""}</dd><dt>Roles</dt><dd>${esc((l[1].roles||[]).map(x=>ROLE_LABEL[x]).join(", ")||"None")}${isOwner?" (plus Admin, because you manage this tool)":""}</dd><dt>Teams</dt><dd>${esc((l[1].teams||[]).map(teamName).join(", ")||"None")}</dd></dl>`
+      :ra?`<p style="margin:0">You manage this tool, so you have Admin access. Add yourself to the directory to also take other roles.</p><div class="row" style="margin-top:10px"><button class="btn sm" data-xact="addSelf">Add me to the directory</button></div>`
+      :`<p style="margin:0">You aren't set up yet. Ask a Q&amp;G Admin to add you below and link your sign-in.</p>`}
+  </div></div>
+  ${ra?`<h3>Test mode</h3>
+  <div class="card" style="max-width:860px"><div class="in stack">
+    <p style="margin:0">Use “Acting as” at the top of the page to work as any person in the directory, so you can test every role yourself: register and route as a Maker, accept and call as a team member, assign as a team head, and review as a Checker. Evaluator independence still applies, so use different people for the team and the checker.</p>
+    <div class="row">${Object.values(members).some(m=>m.test)?`<span class="flag blue">Test people are in the directory</span>`:`<button class="btn sm" data-xact="seed">Create test people</button><span class="sm muted">Adds a Maker, a team head, a team member, a Checker and a Compliance user, all marked as test.</span>`}</div>
+  </div></div>`:""}
+  <h3>Teams</h3>
+  <div class="tbl"><table><thead><tr><th>Team</th><th>LOB</th><th>Head (assigns cases)</th><th>Members</th><th>Active</th>${canA?"<th></th>":""}</tr></thead><tbody>
+  ${tm.map((t,i)=>{const mm=Object.entries(members).filter(([,m])=>m.active!==false&&(m.teams||[]).includes(t.id));return `<tr>
+    <td>${canA?`<input type="text" data-tf="${i}" data-f="name" value="${esc(t.name)}" aria-label="Team name">`:esc(t.name)}</td>
+    <td>${canA?`<select data-tf="${i}" data-f="lob">${opts(cfg.lobs,t.lob,"—")}</select>`:esc(t.lob||"—")}</td>
+    <td>${canA?`<select data-tf="${i}" data-f="headId">${opts(mm.map(([id,m])=>({v:id,l:m.name})),t.headId,mm.length?"Not set":"Add members first")}</select>`:esc(t.headId?nameOf(t.headId):"—")}</td>
+    <td class="sm">${mm.length?esc(mm.map(([,m])=>m.name).join(", ")):`<span class="muted">None</span>`}</td>
+    <td>${canA?`<input type="checkbox" data-tf="${i}" data-f="active"${t.active!==false?" checked":""} aria-label="Active">`:(t.active!==false?"Yes":"No")}</td>
+    ${canA?`<td><button class="btn link" data-xact="delTeam" data-i="${i}">Remove</button></td>`:""}</tr>`;}).join("")}
+  </tbody></table></div>
+  ${canA?`<div class="row" style="margin-top:8px"><button class="btn sm" data-xact="addTeam">Add team</button><button class="btn sm primary" data-xact="saveTeams">Save teams</button><span class="sm muted">Renaming a team keeps its cases; they show the new name.</span></div>`:""}
+  <h3>People and roles</h3>
+  ${canA?`<div class="row"><button class="btn primary" data-xact="newMem">Add a person</button></div>`:""}
+  ${form}
+  <div class="tbl" style="margin-top:12px"><table><thead><tr><th>Name</th><th>Designation</th><th>Teams</th><th>Roles</th><th>Sign-in</th><th>Status</th>${canA?"<th></th>":""}</tr></thead><tbody>
+  ${mlist.length?mlist.map(([id,m])=>`<tr${m.active===false?' style="opacity:.55"':""}><td><b>${esc(m.name)}</b>${m.employeeId?`<div class="sm muted">${esc(m.employeeId)}</div>`:""}</td><td class="sm">${esc(m.designation||"")}${m.advisor?` <span class="flag">Advisor</span>`:""}</td><td class="sm">${esc((m.teams||[]).map(teamName).join(", ")||"—")}${cfg.units.some(t=>t.headId===id)?` <span class="flag blue">Head</span>`:""}</td><td class="sm">${esc((m.roles||[]).map(x=>ROLE_LABEL[x]).join(", ")||"—")}</td><td class="sm">${m.userId?esc(names[m.userId]||"Linked"):`<span class="muted">Not linked</span>`}</td><td class="sm">${m.active===false?"Inactive":"Active"}${m.test?` <span class="flag">Test</span>`:""}</td>${canA?`<td><button class="btn link" data-xact="editMem" data-id="${esc(id)}">Edit</button></td>`:""}</tr>`).join(""):`<tr><td colspan="7" class="muted">No people yet.${canA?" Add your team members, advisors and checkers.":""}</td></tr>`}
+  </tbody></table></div>`;
+}
+async function saveMember(){
+  const f=drafts._mem, p=[];
+  const name=String(f.name||"").trim(); if(!name) p.push("Enter the person's name.");
+  if((f.roles||[]).includes("team")&&!(f.teams||[]).length) p.push("A team member needs at least one team.");
+  if(f.email&&!/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(f.email)) p.push("The email address doesn't look right.");
+  if(f.userId){ const dup=Object.entries(members).find(([id,m])=>id!==f.id&&m.userId===f.userId&&m.active!==false); if(dup) p.push("That sign-in is already linked to "+dup[1].name+"."); }
+  f.probs=p; if(p.length){ renderProfile(); return; }
+  const id=f.id||("m_"+Date.now().toString(36)+Math.random().toString(36).slice(2,6));
+  const prev=members[id]||null;
+  const doc={name,employeeId:String(f.employeeId||"").trim(),designation:String(f.designation||"").trim(),email:String(f.email||"").trim().toLowerCase(),extension:String(f.extension||"").trim(),userId:f.userId||null,advisor:!!f.advisor,teams:f.teams||[],roles:f.roles||[],active:f.active!==false,test:!!(prev&&prev.test),createdAt:prev?prev.createdAt:iso(),updatedAt:iso(),updatedBy:me};
+  try{
+    if(mode==="db") await db.doc("members/"+id).set(doc); else { members[id]=doc; syncMe(); }
+    await addLog("config_events",{changed:["member"],memberId:id,before:prev,after:doc});
+    drafts._mem=null; toast(name+" saved."); renderAll(); renderProfile();
+  }catch(e){ writeErr(e); }
+}
+async function saveTeams(){
+  const t=drafts._teams.map(x=>({...x,name:String(x.name||"").trim()}));
+  if(t.some(x=>!x.name)){ toast("Every team needs a name."); return; }
+  if(new Set(t.map(x=>x.name.toLowerCase())).size!==t.length){ toast("Two teams have the same name."); return; }
+  const next=clone(cfg); next.units=t; next.version=(cfg.version||1)+1;
+  try{
+    if(mode==="db") await db.doc("config/settings").set(next); else cfg=next;
+    await addLog("config_events",{version:next.version,changed:["teams"],before:cfg.units,after:t});
+    drafts._teams=null; toast("Teams saved."); renderAll(); renderProfile();
+  }catch(e){ writeErr(e); }
+}
+async function seedTestPeople(){
+  const t=activeTeams(); if(!t.length){ toast("Add a team first."); return; }
+  const t1=t.find(x=>/motor/i.test(x.name))||t[0];
+  const ppl=[["Test Maker",["maker"],[],"Q&G officer"],["Test Team Head",["team"],[t1.id],t1.name+" team lead"],["Test Team Member",["team"],[t1.id],t1.name+" advisor",true],["Test Checker",["checker"],[],"Complaint Evaluator"],["Test Compliance",["compliance"],[],"Compliance officer"]];
+  try{
+    const ids=[];
+    for(const [name,roles,teams,designation,advisor] of ppl){
+      const id="m_test_"+name.toLowerCase().replace(/[^a-z]+/g,"_");
+      const doc={name,roles,teams,designation,advisor:!!advisor,userId:null,active:true,test:true,employeeId:"",email:"",extension:"",createdAt:iso(),updatedAt:iso(),updatedBy:me};
+      if(mode==="db") await db.doc("members/"+id).set(doc); else members[id]=doc;
+      ids.push(id);
+    }
+    const next=clone(cfg); next.units=next.units.map(u=>u.id===t1.id&&!u.headId?{...u,headId:ids[1]}:u); next.version=(cfg.version||1)+1;
+    if(mode==="db") await db.doc("config/settings").set(next); else cfg=next;
+    drafts._teams=null; await addLog("config_events",{changed:["test people"],after:ids});
+    toast("Test people added. Use “Acting as” at the top to switch."); renderAll(); renderProfile();
+  }catch(e){ writeErr(e); }
+}
+
+/* ---------- Admin ---------- */
+function renderAdmin(){
+  if(!isMgr()&&!has("compliance")){ $("#adminPage").innerHTML=`<h2>Admin</h2><p class="muted">Admin is for Admins, and the audit extract also for Compliance.</p>`; return; }
+  const a=drafts._cfg||(drafts._cfg=clone(cfg)), mgr=isMgr();
+  $("#adminPage").innerHTML=`<h2>Admin</h2><p class="muted">Configuration changes are versioned. Clock changes apply to clocks started after you save.</p>
+  <h3>Audit extract</h3>
+  <div class="card" style="max-width:720px"><div class="in stack">
+    <div class="g3"><label class="f"><span>From</span><input type="date" id="exFrom" value="${esc(drafts._exFrom||new Date(Date.now()-30*864e5).toISOString().slice(0,10))}"></label><label class="f"><span>To</span><input type="date" id="exTo" value="${esc(drafts._exTo||new Date().toISOString().slice(0,10))}"></label></div>
+    <div class="row"><button class="btn primary" data-aact="extract"${downloads?"":" disabled"}>Download CSV</button><span class="sm muted">One row per event, joined to its case: owner, category, clocks, breach flags, RCA and history. The extract is logged.</span></div>
+  </div></div>
+  ${mgr?`
+  <h3>Categories and clocks per category</h3>
+  <div class="tbl"><table><thead><tr><th>Name</th><th>Complaint</th><th>Regulatory</th><th>Default priority</th><th>Ack clock (working h)</th><th>Resolution clock</th><th>Active</th></tr></thead><tbody>
+  ${a.categories.map((c,i)=>`<tr><td><input type="text" data-ac="${i}" data-f="name" value="${esc(c.name)}"></td><td><input type="checkbox" data-ac="${i}" data-f="complaint"${c.complaint?" checked":""}></td><td><input type="checkbox" data-ac="${i}" data-f="regulatory"${c.regulatory?" checked":""}></td><td><select data-ac="${i}" data-f="priority">${opts(a.priorities,c.priority)}</select></td><td><input type="number" min="0" step="0.5" data-ac="${i}" data-f="ackH" value="${esc(c.ackH??"")}" placeholder="${a.clocks.ackH} (CMI)"></td><td><div class="row" style="flex-wrap:nowrap"><input type="number" min="0" data-ac="${i}" data-f="resV" value="${esc(c.res?c.res.v:"")}" placeholder="Not set" style="width:80px"><select data-ac="${i}" data-f="resU" style="width:auto">${opts([{v:"d",l:"working days"},{v:"h",l:"working h"}],c.res?c.res.u:"d")}</select></div></td><td><input type="checkbox" data-ac="${i}" data-f="active"${c.active?" checked":""}></td></tr>`).join("")}
+  </tbody></table></div>
+  <div class="row" style="margin-top:8px"><button class="btn sm" data-aact="addCat">Add category</button><span class="sm muted">Resolution clocks are left unset until Q&amp;G and Compliance confirm them (D2).</span></div>
+  <h3>CMI clocks <span class="prop">Proposed</span></h3>
+  <div class="g3" style="max-width:820px">
+    ${[["ackH","Acknowledgement (working h)"],["firstCallD","First unit call (working days)"],["unitActionD","Unit action (working days)"],["reworkD","Rework (working days)"],["attempts","Call attempts if not connected"],["attemptDays","…spread over (working days)"],["escalationPct","Escalation threshold (% of resolution)"],["reopenDays","Reopen window (days)"]].map(([k,l])=>`<label class="f"><span>${esc(l)}</span><input type="number" min="0" data-ak="${k}" value="${esc(a.clocks[k])}"></label>`).join("")}
+  </div>
+  <h3>Working calendar</h3>
+  <div class="tbl" style="max-width:560px"><table><thead><tr><th>Day</th><th>Working</th><th>Opens</th><th>Closes</th></tr></thead><tbody>
+  ${[1,2,3,4,5,6,0].map(i=>{const d=a.calendar.week[i];return `<tr><td>${DAYS[i]}</td><td><input type="checkbox" data-aw="${i}" data-f="on"${d?" checked":""}></td><td><input type="time" data-aw="${i}" data-f="o" value="${esc(d?d.o:"")}"${d?"":" disabled"}></td><td><input type="time" data-aw="${i}" data-f="c" value="${esc(d?d.c:"")}"${d?"":" disabled"}></td></tr>`;}).join("")}
+  </tbody></table></div>
+  <label class="f" style="max-width:560px;margin-top:10px"><span>Public holidays, one date per line (YYYY-MM-DD)</span><textarea data-alist="holidays">${esc((a.calendar.holidays||[]).join("\n"))}</textarea></label>
+  <p class="sm muted">Teams, people and roles are managed in Access.</p>
+  <h3>RCA taxonomy</h3>
+  <label class="f" style="max-width:720px"><span>One level-1 category per line. Add level-2 values after a colon, separated by commas.</span><textarea data-alist="rca" style="min-height:150px">${esc(Object.entries(a.rca).map(([k,v])=>k+(v.length?": "+v.join(", "):"")).join("\n"))}</textarea></label>
+  <h3>Lists</h3>
+  <div class="g2" style="max-width:820px">
+    ${[["channels","Channels"],["lobs","LOBs"],["branches","Branches"],["priorities","Priorities"],["outcomes","Call outcomes"]].map(([k,l])=>`<label class="f"><span>${l}, one per line</span><textarea data-alist="${k}">${esc(a[k].join("\n"))}</textarea></label>`).join("")}
+  </div>
+  <div class="row" style="margin:18px 0"><button class="btn primary" data-aact="save">Save configuration</button><button class="btn" data-aact="discard">Discard changes</button></div>`:""}`;
+}
+
+/* ========================= actions ========================= */
+const lines=s=>String(s||"").split("\n").map(x=>x.trim()).filter(Boolean);
+async function onAct(act,el){ await doAct(act,el); renderDetail(true); if(view==="now") renderNow(); }
+async function doAct(act,el){
+  if(act==="back"){ selRef=null; watchEvents(null); renderList(); return; }
+  if(act==="goProfile"){ setView("profile"); return; }
+  const c=cur(); if(!c) return;
+  const r=c.ref, d=drafts[r]||(drafts[r]={});
+  switch(act){
+    case "reveal":
+      revealed[r]=true; addLog("pii_log",{caseRef:r,fields:["email","mobile"]}); addEvent(r,"PII_READ",{reason:"Contact detail shown"}); return;
+    case "saveIntake":{
+      const p={}; ["category","priority","lob","branch","title","description"].forEach(k=>{ if(k in d) p[k]=String(d[k]).trim(); });
+      if(!Object.keys(p).length){ toast("Nothing to save."); return; }
+      if(p.title===""||p.description===""){ toast("Title and description can't be empty."); return; }
+      if(p.category&&p.category!==c.category){
+        const nc=cfg.categories.find(x=>x.code===p.category);
+        p.complaint=!!nc.complaint;
+        p.clocks={ack:{start:c.openedAt,due:addWH(c.openedAt,nc.ackH??cfg.clocks.ackH),stop:null},resolution:nc.res&&nc.res.v?{start:c.openedAt,due:nc.res.u==="h"?addWH(c.openedAt,nc.res.v):addWD(c.openedAt,nc.res.v),stop:null}:{due:null}};
+      }
+      try{ await updateCase(r,p); await addEvent(r,"EDIT",{reason:"Changed "+Object.keys(p).filter(k=>!["clocks","complaint"].includes(k)).join(", "),payload:{before:Object.fromEntries(Object.keys(p).filter(k=>k!=="clocks").map(k=>[k,c[k]??null])),after:p}}); clr(r,Object.keys(p)); toast("Saved."); }catch(_){}
+      return;
+    }
+    case "addEv":{
+      const content=String(d["ev.content"]||"").trim(), rec=String(d["ev.rec"]||"").trim();
+      if(!content&&!rec){ toast("Paste the transcript, thread or email, or link the recording."); return; }
+      if(rec&&!safeUrl(rec)){ toast("Recording links must start with https://"); return; }
+      if(content.length>60000){ toast("That's too long for one case. Trim it to the relevant exchange."); return; }
+      const ints=[...(c.interactions||[]),{channel:d["ev.channel"]||"call",content,recordingUrl:rec,callId:String(d["ev.callId"]||"").trim(),at:d["ev.at"]?new Date(d["ev.at"]+":00+04:00").toISOString():null,by:me}];
+      try{ await updateCase(r,{interactions:ints}); await addEvent(r,"EDIT",{reason:"Attached "+(QA_CHANNELS[d["ev.channel"]||"call"])+" interaction"}); clr(r,["ev.content","ev.rec","ev.callId","ev.at"]); }catch(_){}
+      return;
+    }
+    case "delEv":{ const ints=[...(c.interactions||[])]; ints.splice(+el.dataset.i,1); try{ await updateCase(r,{interactions:ints}); await addEvent(r,"EDIT",{reason:"Removed an attached interaction"}); }catch(_){} return; }
+    case "runQA": return runQA(c);
+    case "manualQA": d._qaForm=!d._qaForm; d._noneForm=false; return;
+    case "noneQA": d._noneForm=!d._noneForm; d._qaForm=false; return;
+    case "saveNone":{
+      const why=String(d["qa.noneReason"]||"").trim(); if(!why){ toast("Say why there's no staff interaction."); return; }
+      try{ await updateCase(r,{interactionQA:{none:true,reason:why,by:me,at:iso()}}); await addEvent(r,"EDIT",{reason:"Interaction QA: no identifiable staff interaction. "+why}); clr(r,["qa.noneReason","_noneForm"]); }catch(_){}
+      return;
+    }
+    case "acceptQA":{
+      const s=c.aiQA; try{ await updateCase(r,{interactionQA:{tone:s.tone,score:s.score,breaches:s.breaches,coaching:s.coaching,fromAi:true,model:s.model,by:me,at:iso()}}); await addEvent(r,"AI_ACCEPT",{reason:"Interaction QA suggestion recorded: score "+s.score+", tone "+s.tone}); }catch(_){}
+      return;
+    }
+    case "saveQA":{
+      const base=c.interactionQA||c.aiQA||{};
+      const score=parseInt(d["qa.score"]??base.score,10);
+      if(!(score>=1&&score<=10)){ toast("Score must be a whole number from 1 to 10."); return; }
+      const br=("qa.breaches" in d?lines(d["qa.breaches"]):(base.breaches||[]).map(b=>b.breach+" | "+b.evidence)).map(l=>{const [b,...e]=l.split("|");return {breach:b.trim(),evidence:e.join("|").trim()};});
+      if(br.some(b=>!b.evidence)){ toast("Each breach needs evidence: add “| quote or timestamp”."); return; }
+      const q={tone:d["qa.tone"]||base.tone||"courteous",score,breaches:br,coaching:"qa.coaching" in d?lines(d["qa.coaching"]):(base.coaching||[]),by:me,at:iso(),fromAi:false};
+      try{ await updateCase(r,{interactionQA:q}); await addEvent(r,c.aiQA?"AI_ACCEPT":"EDIT",{reason:"Interaction QA recorded: score "+score+", tone "+q.tone+(c.aiQA?" (edited from AI suggestion)":"")}); clr(r,["qa.tone","qa.score","qa.breaches","qa.coaching","_qaForm"]); }catch(_){}
+      return;
+    }
+    case "route":{
+      const unit=d.unit??c.unit;
+      const ok=await transition({...c,unit},"routed_to_unit");
+      if(ok){ if(unit!==c.unit){ /* unit persisted below */ } }
+      return;
+    }
+    case "dup":{ d._dupOpen=true; if(await transition(c,"closed_duplicate",{_dupOf:d.dupOf,_reason:d.dupReason})) clr(r,["dupOf","dupReason","_dupOpen"]); return; }
+    case "go": await transition(c,el.dataset.to); return;
+    case "ncResolve": if(await transition(c,"resolved",{_reason:d.ncReason})) clr(r,["ncReason"]); return;
+    case "assign":{
+      const to=d.assignTo; if(!to){ toast("Choose a person."); return; }
+      if(c.ownerId&&!String(d.assignReason||"").trim()){ toast("Reassignment needs a reason."); return; }
+      try{ await updateCase(r,{ownerId:to,assignedAt:iso()}); await addEvent(r,"ASSIGN",{reason:(c.ownerId?"Reassigned from "+nameOf(c.ownerId)+" to ":"Assigned to ")+nameOf(to)+(d.assignReason?". "+d.assignReason:""),payload:{from:c.ownerId||null,to}}); clr(r,["assignTo","assignReason"]); toast("Owner updated."); }catch(_){}
+      return;
+    }
+    case "logCall":{
+      const rec=String(d["call.rec"]||"").trim(); if(rec&&!safeUrl(rec)){ toast("Recording links must start with https://"); return; }
+      const connected=(d["call.connected"]||"yes")==="yes";
+      if(connected&&!rec){ toast("A connected call needs its recording link to count."); }
+      const at=d["call.at"]?new Date(d["call.at"]+":00+04:00").toISOString():iso();
+      const call={at,by:me,connected,talk:d["call.talk"]?+d["call.talk"]:null,callId:String(d["call.callId"]||"").trim(),recordingUrl:rec,note:String(d["call.note"]||"").trim()};
+      const patch={unitCalls:[...(c.unitCalls||[]),call].sort((a,b)=>a.at.localeCompare(b.at))};
+      const fc=(c.clocks||{}).firstCall; if(fc&&!fc.stop) patch.clocks={firstCall:{stop:at}};
+      try{ await updateCase(r,patch); await addEvent(r,"ACTION",{reason:"Outbound call attempt "+patch.unitCalls.length+": "+(connected?"connected":"not connected")+(call.callId?", 3CX "+call.callId:""),payload:call}); clr(r,["call.at","call.connected","call.talk","call.callId","call.rec","call.note"]); }catch(_){}
+      return;
+    }
+    case "saveUnit": case "submitUnit":{
+      const u0=c.unitInput||{};
+      const ui={outcome:d["ui.outcome"]??u0.outcome??"",notes:String(d["ui.notes"]??u0.notes??"").trim(),action:String(d["ui.action"]??u0.action??"").trim(),by:me,at:iso()};
+      try{
+        if(JSON.stringify([ui.outcome,ui.notes,ui.action])!==JSON.stringify([u0.outcome,u0.notes,u0.action])){ await updateCase(r,{unitInput:ui}); await addEvent(r,"EDIT",{reason:"Unit input saved"}); }
+        clr(r,["ui.outcome","ui.notes","ui.action"]);
+        if(act==="submitUnit") await transition({...c,unitInput:ui},"evaluator_review");
+        else toast("Input saved.");
+      }catch(_){}
+      return;
+    }
+    case "pickRework": if(await transition(c,"unit_input_pending",{_reason:d.rwPick})) clr(r,["rwPick"]); return;
+    case "rework": if(await transition(c,"rework_requested",{_reason:d.rwReason})) clr(r,["rwReason"]); return;
+    case "accept":{
+      const rca={l1:d["rca.l1"]??(c.rca||{}).l1??"",l2:String(d["rca.l2"]??(c.rca||{}).l2??"").trim(),note:String(d["rca.note"]??"").trim(),preventive:String(d["rca.prev"]??"").trim()};
+      if(await transition(c,"rca_complete",{_rca:rca,_validity:d.validity,_level:d.level??""})) clr(r,["rca.l1","rca.l2","rca.note","rca.prev","validity","level"]);
+      return;
+    }
+    case "chip": d.prompt=el.dataset.p; return applyPrompt(c);
+    case "applyPrompt": return applyPrompt(c);
+    case "saveDraft": try{ await updateCase(r,{responseDraft:String(d.resp??c.responseDraft??"")}); clr(r,["resp"]); toast("Draft saved."); }catch(_){} return;
+    case "undoDraft": d.resp=undo[r]; delete undo[r]; return;
+    case "resolve": if(await transition(c,"resolved",{_response:String(d.resp??c.responseDraft??"").trim()})) clr(r,["resp","prompt"]); return;
+    case "reopen": if(await transition(c,"unit_input_pending",{_reason:d.reopenReason})) clr(r,["reopenReason"]); return;
+    case "escalate":{
+      const reason=String(d["esc.reason"]||"").trim(); if(!reason){ toast("Escalation needs a reason."); return; }
+      const team=d["esc.team"]||"Q&G management";
+      try{ await updateCase(r,{escalation:{active:true,team,reason,by:me,at:iso()}}); await addEvent(r,"ESCALATE",{reason:"To "+team+": "+reason}); clr(r,["esc.reason","esc.team"]); toast("Escalated. The clock keeps running."); }catch(_){}
+      return;
+    }
+    case "deescalate":{
+      const reason=String(d["esc.clear"]||"").trim(); if(!reason){ toast("Give a reason for clearing the escalation."); return; }
+      try{ await updateCase(r,{escalation:{active:false,clearedBy:me,clearedAt:iso(),clearReason:reason}}); await addEvent(r,"ESCALATE",{reason:"Escalation cleared: "+reason}); clr(r,["esc.clear"]); }catch(_){}
+      return;
+    }
+    case "addAction":{
+      const text=String(d["act.text"]||"").trim(); if(!text){ toast("Describe the action or note."); return; }
+      const type=d["act.type"]||"NOTE";
+      const a={at:iso(),by:me,type,text,customerFacing:!!d["act.cf"]};
+      try{ await updateCase(r,{actions:[...(c.actions||[]),a]}); await addEvent(r,type==="NOTE"?"NOTE":"ACTION",{reason:type+": "+text}); clr(r,["act.text","act.cf"]); }catch(_){}
+      return;
+    }
+    case "addLink":{
+      const id=String(d["ln.id"]||"").trim(); if(!id){ toast("Enter the source ID."); return; }
+      const l={source:d["ln.src"]||"ZOHO_TICKET",id,date:null,by:me,at:iso()};
+      try{ await updateCase(r,{links:[...(c.links||[]),l]}); await addEvent(r,"LINK",{reason:(SOURCES[l.source])+" "+id}); clr(r,["ln.id"]); }catch(_){}
+      return;
+    }
+  }
+}
+async function upload(file){
+  const c=cur(); if(!c||!assets) return;
+  if(file.size>20*1024*1024){ toast("Files can be up to 20 MB."); return; }
+  busy[c.ref]="Uploading "+file.name; renderDetail(true);
+  try{
+    const ext=(file.name.split(".").pop()||"").toLowerCase();
+    const typeMap={pdf:"application/pdf",png:"image/png",jpg:"image/jpeg",jpeg:"image/jpeg",webp:"image/webp",gif:"image/gif",csv:"text/csv",txt:"text/plain",json:"application/json",md:"text/markdown",mp4:"video/mp4"};
+    const res=await assets.upload(file,file.type?undefined:{type:typeMap[ext]});
+    const a={id:res.id,name:file.name,size:res.sizeBytes,type:res.contentType,by:me,at:iso()};
+    await updateCase(c.ref,{attachments:[...(c.attachments||[]),a]}); await addEvent(c.ref,"LINK",{reason:"Attached "+file.name});
+    toast("File attached.");
+  }catch(e){ toast(e&&e.code==="rejected_type"?"That file type isn't accepted. Use PDF, image, video or text.":"The file didn't upload. Try again."); }
+  delete busy[c.ref]; renderDetail(true);
+}
+
+/* ========================= AI ========================= */
+async function runQA(c){
+  const r=c.ref, withText=(c.interactions||[]).filter(x=>(x.content||"").trim());
+  if(!withText.length){ toast("Add the transcript, thread or email text first. Audio alone can't be audited."); return; }
+  busy[r]="Auditing the original interaction. This can take up to a minute."; renderDetail(true);
+  const evid=c.interactions.map((x,i)=>`#${i+1} ${QA_CHANNELS[x.channel]}${x.at?", "+x.at:""}\n${x.content||"(no transcript)"}`).join("\n\n---\n\n");
+  try{
+    const out=await sample.json(`${QA_PROMPT}
+
+Response schema:
+{"tone":"courteous|defensive|dismissive|exemplary","qualityScore":<integer 1-10>,"protocolBreaches":[{"breach":"<short name>","evidence":"<verbatim quote or timestamp from the evidence>"}],"coachingTips":["<tip>","<tip>"]}
+
+Case context: ${c.title}. ${c.description}
+
+Interaction evidence:
+${evid}`,{cache:false});
+    const tone=String(out.tone||"").toLowerCase(), score=Math.round(+out.qualityScore);
+    if(!TONES.includes(tone)||!(score>=1&&score<=10)) throw {code:"bad_shape"};
+    const s={tone,score,breaches:(Array.isArray(out.protocolBreaches)?out.protocolBreaches:[]).map(b=>({breach:String(b.breach||"").slice(0,300),evidence:String(b.evidence||"").slice(0,600)})).filter(b=>b.breach),coaching:(Array.isArray(out.coachingTips)?out.coachingTips:[]).map(String).slice(0,5),model:"claude (qa-v1)",at:iso()};
+    await updateCase(r,{aiQA:s}); await addEvent(r,"AI_SUGGEST",{reason:"Interaction QA suggestion: score "+score+", tone "+tone,payload:s});
+  }catch(e){ toast(e&&e.code==="rate_limited"?"Too many AI requests right now. Try again in a minute.":e&&e.code==="not_granted"?"The AI audit needs your permission. You can enter the result by hand instead.":"The AI audit didn't finish. Try again or enter the result by hand."); }
+  delete busy[r]; renderDetail(true);
+}
+async function applyPrompt(c){
+  const r=c.ref, d=drafts[r]||(drafts[r]={}), instr=String(d.prompt||"").trim();
+  if(!instr){ toast("Type an instruction first, for example “Make more concise for mobile”."); return; }
+  const current=String(d.resp??c.responseDraft??""), pub=c.channel==="Google Review"||c.channel==="Social", u=c.unitInput||{};
+  const facts=[`Case ${c.ref}, ${catName(c.category)}, channel ${c.channel}, branch ${c.branch}.`,`Complaint: ${c.title}. ${c.description}`,
+    u.outcome?`A ${teamName(c.unit)} team member called the customer. Outcome: ${u.outcome}. Discussed: ${u.notes}`:"",u.action?`Action taken: ${u.action}`:"",
+    c.rca&&c.rca.preventive?`Preventive action: ${c.rca.preventive}`:"",
+    pub?`This reply is public on ${c.channel}: it must not contain the customer's name, contact details, policy or case details.`:`Customer first name for a private reply: ${String((c.customer||{}).name||"").split(" ")[0]}`].filter(Boolean).join("\n");
+  undo[r]=current; busy[r]="Rewriting the draft."; renderDetail(true);
+  try{
+    const res=await sample(`${REFINE_PROMPT}\n\nInstruction: ${instr}\nDraft: ${current.trim()?current:"(empty: write a first draft from the case facts)"}\nCase facts: ${facts}\n\nReply with only the rewritten response text, with no preamble or notes.`,{cache:false,onText:({text})=>{const ta=document.querySelector('#detail textarea[data-d="resp"]'); if(ta) ta.value=text;}});
+    d.resp=res.text.trim(); d.prompt="";
+    toast(res.truncated?"The rewrite was cut short. Ask for a shorter reply.":"Draft updated. Review it before saving.");
+  }catch(e){ delete undo[r]; toast(e&&e.code==="rate_limited"?"Too many AI requests right now. Try again in a minute.":"The rewrite didn't finish. Your draft is unchanged."); }
+  delete busy[r]; renderDetail(true);
+}
+async function suggestIntake(){
+  const s=regState; const text=(s.title||"")+"\n"+(s.description||"");
+  if(text.trim().length<10){ toast("Add a title and description first."); return; }
+  s.busy=true; renderRegister();
+  const cats=cfg.categories.filter(c=>c.active);
+  try{
+    const out=await sample.json(`Classify this customer case for an insurance brokerage. Choose the category from this list of codes only: ${cats.map(c=>c.code+" ("+c.name+")").join(", ")}.
+Also score the customer's sentiment from -1 (very negative) to 1 (very positive).
+Reply with only JSON: {"category":"<code>","confidence":<0-1>,"top3":[{"category":"<code>","confidence":<0-1>}],"sentiment":<-1..1>}
+
+Case:
+${text.slice(0,8000)}`,{cache:false,modelTier:"quick"});
+    const valid=c=>cats.some(x=>x.code===c);
+    const cat=valid(out.category)?out.category:null;
+    const sent=Math.max(-1,Math.min(1,+out.sentiment||0));
+    const top3=(Array.isArray(out.top3)?out.top3:[]).filter(t=>valid(t.category)).slice(0,3);
+    const conf=cat?Math.max(0,Math.min(1,+out.confidence||0)):0;
+    const base=cat?(cfg.categories.find(x=>x.code===cat).priority):cfg.priorities[1]||cfg.priorities[0];
+    const pr=cfg.priorities, i=pr.indexOf(base), priority=sent<=-0.5&&i>0?pr[i-1]:base;
+    s.ai={category:cat,confidence:conf,top3:top3.length?top3:(cat?[{category:cat,confidence:conf}]:[]),sentiment:sent,priority,at:iso()};
+  }catch(e){ toast("The suggestion didn't come back. Choose the category and priority yourself."); }
+  s.busy=false; renderRegister();
+}
+async function registerCase(){
+  const s=regState, p=[];
+  ["cName","channel","title","description","category","priority"].forEach(k=>{ if(!String(s[k]||"").trim()) p.push({cName:"Customer name",channel:"Channel",title:"Title",description:"Description",category:"Category",priority:"Priority"}[k]+" is required."); });
+  if(s.cEmail&&!/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(s.cEmail)) p.push("The email address doesn't look right.");
+  if(s.srcType&&!String(s.srcId||"").trim()) p.push("Add the source ID, or set Source to None.");
+  s.probs=p; if(p.length){ renderRegister(); return; }
+  s.saving=true; renderRegister();
+  try{
+    const ref=await nextRef(), now=iso(), cat=cfg.categories.find(x=>x.code===s.category);
+    const advId=s.advisorId&&members[s.advisorId]?s.advisorId:null;
+    const c={ref,status:"new",statusAt:now,channel:s.channel,branch:s.branch||cfg.branches[0],lob:s.lob||"",category:s.category,complaint:!!cat.complaint,priority:s.priority,title:s.title.trim(),description:s.description.trim(),
+      customer:{name:s.cName.trim(),email:String(s.cEmail||"").trim().toLowerCase(),mobile:String(s.cMobile||"").trim(),provisional:true},
+      advisor:advId?{name:members[advId].name,id:advId}:(s.advisor?{name:s.advisor.trim(),id:null}:null),
+      sentiment:s.ai&&s.aiAccepted?s.ai.sentiment:null,
+      ai:s.ai?{...s.ai,accepted:!!s.aiAccepted}:null,
+      links:s.srcType?[{source:s.srcType,id:s.srcId.trim(),date:s.srcDate||null,by:me,at:now}]:[],
+      interactions:[],unitCalls:[],actions:[],reviews:[],attachments:[],reworkCount:0,
+      clocks:{ack:{start:now,due:addWH(now,cat.ackH??cfg.clocks.ackH),stop:null},...(cat.res&&cat.res.v?{resolution:{start:now,due:cat.res.u==="h"?addWH(now,cat.res.v):addWD(now,cat.res.v),stop:null}}:{})},
+      ownerId:null,unit:"",openedAt:now,createdBy:me,updatedAt:now};
+    await createCase(c);
+    await addEvent(ref,"CREATED",{to:"new",reason:"Registered via "+c.channel});
+    if(s.ai) await addEvent(ref,"AI_SUGGEST",{reason:"Intake suggestion: "+(s.ai.category?catName(s.ai.category)+" ("+Math.round(s.ai.confidence*100)+"%)":"no confident category")+", sentiment "+s.ai.sentiment.toFixed(2),payload:s.ai});
+    if(s.ai&&s.aiAccepted) await addEvent(ref,"AI_ACCEPT",{reason:"Suggestions accepted"+(s.category!==s.ai.category||s.priority!==s.ai.priority?" with overrides":"")});
+    regState={}; selRef=ref; queue="intake"; setView("cases"); watchEvents(ref); toast(ref+" registered.");
+  }catch(e){ s.saving=false; renderRegister(); if(!(e&&e.code==="invalid_argument")) toast("The case wasn't registered. Try again."); }
+}
+
+/* ========================= admin & profile actions ========================= */
+async function saveConfig(){
+  const a=drafts._cfg;
+  if(!a.categories.length){ toast("Keep at least one category."); return; }
+  const next=clone(a); delete next._grants;
+  next.units=clone(cfg.units);
+  next.categories=next.categories.filter(c=>c.name.trim()).map(c=>({...c,code:c.code||c.name.trim().toUpperCase().replace(/[^A-Z0-9]+/g,"_")}));
+  next.version=(cfg.version||1)+1;
+  const changed=Object.keys(next).filter(k=>k!=="version"&&JSON.stringify(next[k])!==JSON.stringify(cfg[k]));
+  const g=null;
+  try{
+    if(changed.length){
+      if(mode==="db"){ await db.doc("config/settings").set(next); } else { cfg=next; }
+      await addLog("config_events",{version:next.version,changed,before:Object.fromEntries(changed.map(k=>[k,cfg[k]])),after:Object.fromEntries(changed.map(k=>[k,next[k]]))});
+    }
+    drafts._cfg=null; toast(changed.length||g?"Configuration saved"+(changed.length?" (version "+next.version+")":"")+".":"Nothing changed.");
+    if(mode==="local") renderAll();
+  }catch(e){ writeErr(e); }
+}
+async function auditExtract(){
+  const from=$("#exFrom").value, to=$("#exTo").value;
+  if(!from||!to||from>to){ toast("Choose a valid period."); return; }
+  const fromIso=new Date(from+"T00:00:00+04:00").toISOString(), toIso=new Date(to+"T23:59:59+04:00").toISOString();
+  const inPeriod=cases.filter(c=>c.openedAt>=fromIso&&c.openedAt<=toIso);
+  if(!inPeriod.length){ toast("No cases were opened in that period."); return; }
+  let evs=[]; try{ evs=await allEventsSince(fromIso); }catch(_){ toast("The event history couldn't be read. Try again."); return; }
+  const refs=new Set(inPeriod.map(c=>c.ref));
+  const q=v=>{v=v==null?"":String(v);return /[",\n]/.test(v)?'"'+v.replace(/"/g,'""')+'"':v;};
+  const head=["case_ref","category","complaint","priority","channel","lob","unit","branch","status","owner","opened_at","acknowledged_at","resolved_at","ack_due","ack_breached","unit_action_due","unit_action_breached","rework_count","resolution_due","resolution_breached","escalated","rca_l1","rca_l2","rca_note","validity","consequence_level","event_at","event_type","event_from","event_to","event_by","event_reason"];
+  const br=k=>{const s=clockState(k);return s?(s.s==="breached"||s.s==="over"?"Y":"N"):"";};
+  const rows=[head.join(",")];
+  inPeriod.forEach(c=>{
+    const ck=c.clocks||{};
+    const base=[c.ref,catName(c.category),catOf(c).complaint?"Y":"N",c.priority,c.channel,c.lob,teamName(c.unit),c.branch,SL[c.status],c.ownerId?nameOf(c.ownerId).replace(" (you)",""):"",c.openedAt,c.acknowledgedAt||"",c.resolvedAt||"",(ck.ack||{}).due||"",br(ck.ack),(ck.unitAction||{}).due||"",br(ck.unitAction),c.reworkCount||0,(ck.resolution||{}).due||"",br(ck.resolution),c.escalation&&c.escalation.active?"Y":"N",(c.rca||{}).l1||"",(c.rca||{}).l2||"",(c.rca||{}).note||"",c.validity||"",c.consequenceLevel??""];
+    const ce=evs.filter(e=>e.caseRef===c.ref).sort((a,b)=>a.at.localeCompare(b.at));
+    (ce.length?ce:[{}]).forEach(e=>rows.push([...base,e.at||"",e.type||"",e.from||"",e.to||"",e.by?nameOf(e.by).replace(" (you)",""):"",e.reason||""].map(q).join(",")));
+  });
+  try{
+    await downloads.save({filename:`alfred-care-audit-${from}-to-${to}.csv`,data:rows.join("\n")});
+    await addLog("extracts",{from,to,cases:inPeriod.length});
+  }catch(e){ if(!(e&&e.code==="declined")) toast("The file couldn't be saved."); }
+}
+
+/* ========================= events wiring ========================= */
+function wire(){
+  document.querySelector(".rail").addEventListener("click",e=>{const b=e.target.closest("[data-view]"); if(b) setView(b.dataset.view);});
+  $("#regBtn").addEventListener("click",()=>setView("register"));
+  $("#nowPage").addEventListener("click",e=>{
+    const t=e.target.closest("[data-goq]"); if(t){ queue=t.dataset.goq; setView("cases"); return; }
+    const s=e.target.closest("[data-sel]"); if(s){ selRef=s.dataset.sel; watchEvents(selRef); setView("cases"); }
+  });
+  $("#ql").addEventListener("click",e=>{const b=e.target.closest("[data-q]"); if(!b) return; queue=b.dataset.q; renderQueues(); renderList();});
+  $("#items").addEventListener("click",e=>{const b=e.target.closest("[data-sel]"); if(!b) return; selRef=b.dataset.sel; watchEvents(selRef); renderList(); renderDetail(true); $("#detail").scrollTop=0; if(innerWidth<=760) scrollTo(0,0);});
+  $("#q").addEventListener("input",e=>{qText=e.target.value; renderList();});
+  $("#fCat").addEventListener("change",e=>{fCat=e.target.value; renderList();});
+  $("#fUnit").addEventListener("change",e=>{fUnit=e.target.value; renderList();});
+  const det=$("#detail");
+  const track=e=>{
+    const el=e.target.closest("[data-d]"), c=cur(); if(!el||!c) return;
+    const d=drafts[c.ref]||(drafts[c.ref]={});
+    d[el.dataset.d]=el.type==="checkbox"?el.checked:el.value;
+    if(e.type==="change"&&["ui.outcome","rca.l1","unit"].includes(el.dataset.d)) renderDetail(true);
+  };
+  det.addEventListener("input",track); det.addEventListener("change",track);
+  det.addEventListener("change",e=>{ if(e.target.matches("[data-act-file]")&&e.target.files[0]){ upload(e.target.files[0]); e.target.value=""; } });
+  det.addEventListener("click",e=>{const b=e.target.closest("[data-act]"); if(!b) return; e.preventDefault(); onAct(b.dataset.act,b);});
+  det.addEventListener("keydown",e=>{ if(e.key==="Enter"&&e.target.matches('[data-d="prompt"]')){ e.preventDefault(); const c=cur(); if(c) applyPrompt(c); } });
+  det.addEventListener("focusout",()=>setTimeout(()=>{ if(pendingDetail&&!(det.contains(document.activeElement)&&/^(INPUT|TEXTAREA|SELECT)$/.test(document.activeElement.tagName))) renderDetail(true); },0));
+  const reg=$("#regPage");
+  const rtrack=e=>{const el=e.target.closest("[data-r]"); if(el) regState[el.dataset.r]=el.value;};
+  reg.addEventListener("input",rtrack); reg.addEventListener("change",rtrack);
+  reg.addEventListener("click",e=>{
+    const b=e.target.closest("[data-ract]"); if(!b) return; e.preventDefault();
+    const a=b.dataset.ract, s=regState;
+    if(a==="suggest") suggestIntake();
+    if(a==="pickCat"){ s.category=b.dataset.v; renderRegister(); }
+    if(a==="acceptAi"){ if(s.ai.category&&s.ai.confidence>=0.6) s.category=s.ai.category; s.priority=s.ai.priority; s.aiAccepted=true; renderRegister(); toast("Suggestions applied. You can still change them."); }
+    if(a==="create") registerCase();
+    if(a==="reset"){ regState={}; renderRegister(); }
+  });
+  const prof=$("#profilePage");
+  const ptrack=e=>{
+    const el=e.target;
+    if(el.dataset.tf!=null){ const t=drafts._teams[+el.dataset.tf]; t[el.dataset.f]=el.type==="checkbox"?el.checked:el.value; }
+    const f=drafts._mem; if(!f) return;
+    if(el.dataset.mf) f[el.dataset.mf]=el.type==="checkbox"?el.checked:el.value;
+    if(el.dataset.mrole){ const r=el.dataset.mrole; f.roles=el.checked?[...new Set([...(f.roles||[]),r])]:(f.roles||[]).filter(x=>x!==r); }
+  };
+  prof.addEventListener("input",ptrack); prof.addEventListener("change",ptrack);
+  prof.addEventListener("click",e=>{
+    const tc=e.target.closest("[data-mteam]"); if(tc&&drafts._mem){ const f=drafts._mem,id=tc.dataset.mteam; f.teams=(f.teams||[]).includes(id)?f.teams.filter(x=>x!==id):[...(f.teams||[]),id]; renderProfile(); return; }
+    const b=e.target.closest("[data-xact]"); if(!b) return; const a=b.dataset.xact;
+    if(a==="newMem"){ drafts._mem={id:null,roles:[],teams:[],active:true}; renderProfile(); $("#memForm")?.scrollIntoView({block:"start"}); }
+    if(a==="editMem"){ const m=members[b.dataset.id]; drafts._mem={...clone(m),id:b.dataset.id}; renderProfile(); $("#memForm")?.scrollIntoView({block:"start"}); }
+    if(a==="cancelMem"){ drafts._mem=null; renderProfile(); }
+    if(a==="saveMem") saveMember();
+    if(a==="addSelf"){ drafts._mem={id:null,name:meName||"",roles:["admin"],teams:[],active:true,userId:uid}; renderProfile(); $("#memForm")?.scrollIntoView({block:"start"}); }
+    if(a==="seed") seedTestPeople();
+    if(a==="addTeam"){ drafts._teams.push({id:"t-"+Date.now().toString(36),name:"",lob:"",headId:"",active:true}); renderProfile(); }
+    if(a==="delTeam"){ const t=drafts._teams[+b.dataset.i];
+      if(t&&cases.some(c=>tid(c.unit)===t.id&&OPEN(c.status))){ toast("That team has open cases. Reroute or close them first, or mark the team inactive."); return; }
+      if(t&&Object.values(members).some(m=>(m.teams||[]).includes(t.id))){ toast("Move this team's members first, or mark the team inactive."); return; }
+      drafts._teams.splice(+b.dataset.i,1); renderProfile(); }
+    if(a==="saveTeams") saveTeams();
+  });
+  $("#meBox").addEventListener("change",e=>{ if(e.target.id!=="actAs") return; actingAs=e.target.value||null; try{ sessionStorage.setItem("care-acting",actingAs||""); }catch(_){} Object.keys(problems).forEach(k=>delete problems[k]); syncMe(); queue="open"; renderAll(); toast(actingAs?"Now acting as "+members[actingAs].name+".":"Back to yourself."); });
+  $("#testBar").addEventListener("click",e=>{ if(e.target.id!=="stopAct") return; actingAs=null; try{ sessionStorage.removeItem("care-acting"); }catch(_){} syncMe(); renderAll(); });
+  const adm=$("#adminPage");
+  const atrack=e=>{
+    const a=drafts._cfg; if(!a) return; const el=e.target;
+    if(el.id==="exFrom") drafts._exFrom=el.value;
+    if(el.id==="exTo") drafts._exTo=el.value;
+    if(el.dataset.ac!=null){ const c=a.categories[+el.dataset.ac], f=el.dataset.f;
+      if(f==="resV"||f==="resU"){ c.res=c.res||{v:null,u:"d"}; if(f==="resV") c.res.v=el.value===""?null:+el.value; else c.res.u=el.value; if(c.res.v==null) c.res=null; }
+      else if(f==="ackH") c.ackH=el.value===""?null:+el.value;
+      else c[f]=el.type==="checkbox"?el.checked:el.value; }
+    if(el.dataset.ak) a.clocks[el.dataset.ak]=Math.max(0,+el.value||0);
+    if(el.dataset.aw!=null){ const i=+el.dataset.aw, f=el.dataset.f;
+      if(f==="on"){ a.calendar.week[i]=el.checked?{o:"09:00",c:"17:00"}:null; renderAdmin(); }
+      else if(a.calendar.week[i]) a.calendar.week[i][f]=el.value; }
+    if(el.dataset.au!=null) a.units[+el.dataset.au][el.dataset.f]=el.value;
+    if(el.dataset.alist){ const k=el.dataset.alist;
+      if(k==="holidays") a.calendar.holidays=lines(el.value).filter(x=>/^\d{4}-\d{2}-\d{2}$/.test(x));
+      else if(k==="rca"){ const o={}; lines(el.value).forEach(l=>{const [h,...t]=l.split(":"); o[h.trim()]=t.join(":").split(",").map(x=>x.trim()).filter(Boolean);}); a.rca=o; }
+      else a[k]=[...new Set(lines(el.value))]; }
+  };
+  adm.addEventListener("input",atrack); adm.addEventListener("change",atrack);
+  adm.addEventListener("click",e=>{
+    const b=e.target.closest("[data-aact]"); if(!b) return; const a=drafts._cfg;
+    const act=b.dataset.aact;
+    if(act==="extract") return auditExtract();
+    if(act==="save") return saveConfig();
+    if(act==="discard"){ drafts._cfg=null; renderAdmin(); return; }
+    if(act==="addCat"){ a.categories.push({code:"",name:"New category",complaint:false,regulatory:false,priority:a.priorities[0],ackH:null,res:null,active:true}); renderAdmin(); }
+    if(act==="addUnit"){ a.units.push({name:"",headId:""}); renderAdmin(); }
+    if(act==="delUnit"){ const u=a.units[+b.dataset.i]; if(u&&cases.some(c=>c.unit===u.name&&OPEN(c.status))){ toast("That unit has open cases. Reroute them first."); return; } a.units.splice(+b.dataset.i,1); renderAdmin(); }
+  });
+}
+
+/* ========================= boot ========================= */
+setInterval(()=>{ if(document.hidden) return; if(view==="now") renderNow(); if(view==="cases"){ renderQueues(); if(!$("#items").matches(":hover")) renderList(); } },60000);
+async function boot(){
+  try{ actingAs=sessionStorage.getItem("care-acting")||null; }catch(_){}
+  syncMe(); wire(); renderAll();
+  const use=n=>(window.claude&&window.claude.use?window.claude.use(n):Promise.resolve(null)).catch(()=>null);
+  [db,user,sample,downloads,assets]=await Promise.all([use("db"),use("user"),use("sample"),use("downloads"),use("assets")]);
+  if(user){ try{ const m=await user.me(); uid=m.id; meName=m.name; meAvatar=m.avatarUrl; isOwner=!!(m.isOwner||m.canEdit); if(uid&&m.name) names[uid]=m.name; }catch(_){} }
+  if(db&&uid){
+    mode="db";
+    db.doc("config/settings").onSnapshot(s=>{ if(s.exists){ const d=s.data(); cfg=deepMerge(clone(DEFAULT_CFG),d); cfg.units=(d.units||DEFAULT_CFG.units).map(u=>u.id?u:{...u,id:"t-"+String(u.name).toLowerCase().replace(/[^a-z0-9]+/g,"-").replace(/^-|-$/g,""),active:true}); cfg.categories=d.categories||cfg.categories; cfg.rca=d.rca||cfg.rca; } if(!typingIn("#profilePage")) drafts._teams=null; renderAll(); },()=>{});
+    db.collection("members").onSnapshot(s=>{ members={}; s.docs.forEach(d=>members[d.id]=d.data()); syncMe(); renderAll(); },()=>{});
+    db.collection("people").onSnapshot(s=>{ people={}; s.docs.forEach(d=>people[d.id]=d.data()); renderAll(); },()=>{});
+    db.collection("cases").onSnapshot(s=>{ cases=s.docs.map(d=>d.data()); loaded=true; renderAll(); },()=>{ loaded=true; const b=$("#banner"); b.hidden=false; b.textContent="Cases couldn't load. Reload the page to try again."; renderAll(); });
+    try{ await db.doc("people/"+uid).set({seenAt:iso()}); }catch(_){}
+  } else {
+    uid=uid||"local-user"; isOwner=true; loaded=true; mode="local"; people[uid]={seenAt:iso()};
+    const b=$("#banner"); b.hidden=false; b.textContent="Nothing is being saved in this view. Open the published page while signed in to keep a shared case register.";
+    syncMe(); renderAll();
+  }
+  setTimeout(()=>{ if(mode!=="db") return; const b=$("#banner"); if(!b.hidden) return;
+    if(!persona()&&!realAdmin()){ b.hidden=false; b.textContent="You don't have access yet. Ask a Q&G Admin to add you in Access and link your sign-in."; }
+    else if(realAdmin()&&!Object.keys(members).length){ b.hidden=false; b.innerHTML='Start in <button class="btn link" id="goAcc">Access</button>: add your teams and people, or create test people to try every role.'; const g=$("#goAcc"); if(g) g.onclick=()=>{ b.hidden=true; setView("profile"); }; }
+  },2500);
+}
+function typingIn(sel){ const el=$(sel); return el&&el.contains(document.activeElement)&&/^(INPUT|TEXTAREA|SELECT)$/.test(document.activeElement.tagName); }
+boot();
+})();
+</script>
+</body>
+</html>
