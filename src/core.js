@@ -67,7 +67,7 @@ window.__qgHost=function(mod){ return Object.freeze({ use:n=>capFor(mod,n), eval
 const DEFAULT_CFG={
   work:{days:[1,2,3,4,5],start:"08:00",end:"18:00",holidays:[]},
   sla:{intake:4,lm:10,qgReview:10,consequence:10,dispute:10},
-  reminderEveryHours:24,
+  reminderEveryHours:24,dialFormat:"https://afia.3cx.ae:5001/webclient/#/call?phone={number}",
   ventures:[{id:"insurancemarket",name:"InsuranceMarket.ae",code:"IM",color:"#1E5AA8",domain:"insurancemarket.ae",isActive:true,benchmarkPassingScore:85,lobs:["Motor","Health","Life","General","Commercial","Travel"],regulators:["Central Bank of the UAE (CBUAE)","Dubai Health Authority (DHA)","Ministry of Economy","UAE Data Office"]},
     {id:"creditmarket",name:"CreditMarket.ae",code:"CM",color:"#6B3FA0",domain:"creditmarket.ae",isActive:true,benchmarkPassingScore:85,lobs:["Loans","Cards","Mortgages"],regulators:["Central Bank of the UAE (CBUAE)","Ministry of Economy","UAE Data Office"]},
     {id:"holidaymarket",name:"HolidayMarket.ae",code:"HM",color:"#0E8C8C",domain:"holidaymarket.ae",isActive:true,benchmarkPassingScore:85,lobs:["Holidays","Visas"],regulators:["Dubai Department of Economy and Tourism (DET)","Ministry of Economy","UAE Data Office"]}],
