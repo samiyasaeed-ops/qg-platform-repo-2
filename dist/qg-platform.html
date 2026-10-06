@@ -453,6 +453,7 @@ function ownerLabel(c){
    found fresh from Staff list, with a fallback if that person has no manager on record. */
 function consequenceOwner(c){
   const r=c.review||{};
+  if(r.consequenceManagerId) return {lmId:r.consequenceManagerId,superiorId:managerOf(r.consequenceManagerId),fellBack:false,reassigned:true};
   const mgr=r.consequenceStaffId?managerOf(r.consequenceStaffId):null;
   return {lmId:mgr||(c.intake||{}).lmId||null,superiorId:mgr?managerOf(mgr):(c.intake||{}).superiorId||null,fellBack:!mgr};
 }
@@ -750,14 +751,36 @@ function caseDetail(c,kind){
   if(["consequence","ready_internal"].includes(c.status)||c.consequenceAck){
     s5+=`<div class="stamps flat"><span class="tag ok">Closed for the customer</span><span class="dot">·</span><span class="tag amb">Internal: pending ${esc(r.consequence)} for ${esc(personName(r.consequenceStaffId))}</span></div>`;
   }
-  if(c.status==="consequence"){ const co=consequenceOwner(c); if(co.fellBack&&co.lmId) s5+=`<div class="callout amb">${esc(personName(r.consequenceStaffId))} has no manager set in Staff list, so this fell back to ${esc(personName(co.lmId))}, who handled the case. Set their manager in Staff list for this to route correctly in future.</div>`; else if(!co.lmId) s5+=`<div class="callout amb"><b>Nobody to route this to.</b> ${esc(personName(r.consequenceStaffId))} has no line manager in Staff list. Set one, or action this directly as admin.</div>`; }
+  const vetReturns=(r.consequenceReturns||[]);
+  const vetBanner=vetReturns.length?vetReturns.map(x=>`<div class="callout amb"><b>Q&G sent this back ${esc(fmtDT(x.at))}, not satisfied</b> ${esc(x.reason)} <span class="muted">— ${esc(x.byName||"")}</span></div>`).join(""):"";
+  if(["consequence","ready_internal"].includes(c.status)){
+    const co=consequenceOwner(c);
+    if(co.fellBack&&co.lmId) s5+=`<div class="callout amb">${esc(personName(r.consequenceStaffId))} has no manager set in Staff list, so this fell back to ${esc(personName(co.lmId))}, who handled the case. Set their manager in Staff list for this to route correctly in future.</div>`;
+    else if(!co.lmId) s5+=`<div class="callout amb"><b>Nobody to route this to.</b> ${esc(personName(r.consequenceStaffId))} has no line manager in Staff list. Set one, or action this directly as admin.</div>`;
+    if((S.admin||isQG())&&c.status!=="closed"){
+      const people=staffFor(c.venture).filter(p=>p.id!==r.consequenceStaffId);
+      s5+=`<details class="inset"><summary>${co.reassigned?"Reassign again":"Reassign who this is routed to"}</summary>
+       <div class="g2"><label class="f"><span>Route to</span><select data-d="rr-${k}" data-f="who">${opts(people.map(p=>({v:p.id,l:p.name})),dv("rr-"+k,"who",co.lmId||""),"Choose")}</select></label>
+       <label class="f"><span>Reason (optional)</span><input data-d="rr-${k}" data-f="why" value="${esc(dv("rr-"+k,"why",""))}"></label></div>
+       <button class="btn sm" data-act="cxConsReassign" data-ref="${esc(c.ref)}">Reassign</button></details>`;
+    }
+  }
   if(c.status==="consequence"&&act){
     const co=consequenceOwner(c);
-    s5+=`<div class="callout"><b>Consequence to action: ${esc(r.consequence)}</b> for ${esc(personName(r.consequenceStaffId))}. Routed to ${esc(personName(co.lmId))} pending this action. ${esc(r.consequenceNote)}</div>
+    s5+=`${vetBanner}<div class="callout"><b>Pending internal action recommended by Q&G:</b> ${esc(r.consequence)} for ${esc(personName(r.consequenceStaffId))}. Routed to ${esc(personName(co.lmId))}. ${esc(r.consequenceNote)}</div>
     <div class="form"><label class="f"><span class="req">What you did, or why you dispute it</span><textarea rows="3" data-d="${k}" data-f="ackNote">${esc(dv(k,"ackNote",""))}</textarea></label>
     <div class="row"><button class="btn primary" data-act="cxAck" data-ref="${k}">Confirm consequence actioned</button><button class="btn" data-act="cxDispute" data-ref="${k}">Dispute the consequence</button></div></div>`;
-  } else if(c.consequenceAck) s5+=kv([[c.consequenceAck.action==="ack"?"Consequence actioned":"Disputed",esc(c.consequenceAck.note)+" ("+esc(c.consequenceAck.byName||"")+", "+esc(fmtDT(c.consequenceAck.at))+")"]]);
-  if(c.status==="ready_internal"&&act) s5+=`<div class="callout ok"><b>Internal action confirmed.</b> Ready for Q&G to close the case in full.</div><div class="row"><button class="btn primary" data-act="cxInternal" data-ref="${k}">Close internally, with validity ${esc(r.verdict)}</button></div><p class="hint">Internal closure completes the case. The line manager and their superior get the closure email.</p>`;
+  } else if(c.status==="consequence") s5+=vetBanner;
+  else if(c.consequenceAck&&c.status!=="ready_internal") s5+=kv([[c.consequenceAck.action==="ack"?"Consequence actioned":"Disputed",esc(c.consequenceAck.note)+" ("+esc(c.consequenceAck.byName||"")+", "+esc(fmtDT(c.consequenceAck.at))+")"]]);
+  if(c.status==="ready_internal"){
+    s5+=vetBanner;
+    if(c.consequenceAck) s5+=kv([["Manager's action",esc(c.consequenceAck.note)+" ("+esc(c.consequenceAck.byName||"")+", "+esc(fmtDT(c.consequenceAck.at))+")"]]);
+    if(S.admin||isQG()) s5+=`<div class="callout ok"><b>Action confirmed by ${esc(personName(consequenceOwner(c).lmId))}.</b> Q&G to vet: close the case, or send it back if the action isn't sufficient.</div>
+     <div class="row"><button class="btn primary" data-act="cxInternal" data-ref="${k}">Close internally, with validity ${esc(r.verdict)}</button><button class="btn" data-act="cxConsReturn" data-ref="${k}">Send back, not satisfied</button></div>
+     <label class="f"><span>If sending back, say why</span><input data-d="${k}" data-f="vetNote" value="${esc(dv(k,"vetNote",""))}"></label>
+     <p class="hint">Internal closure completes the case. The line manager and their superior get the closure email.</p>`;
+    else s5+=`<p class="muted">Confirmed by ${esc(personName(consequenceOwner(c).lmId))}. Awaiting Q&G to close the case.</p>`;
+  }
   if(cl.internalAt) s5+=kv([["Internal closure",esc(fmtDT(cl.internalAt))+" by "+esc(cl.internalByName||"")]]);
   if(cl.externalAt) s5+=`<div class="csatbox"><h4>Customer satisfaction (CSAT)</h4>${csatView(c)}${isQG()&&(!c.csat||c.csat.status!=="Captured")?`<details class="inset"><summary>${c.csat?"Update CSAT":"Record CSAT"}</summary>${csatForm("csat-"+c.ref,c)}<button class="btn sm primary" data-act="cxCsat" data-ref="${esc(c.ref)}">Save CSAT</button></details>`:""}</div>`;
   if(!s5) s5=`<p class="muted">After Q&G's assessment.</p>`;
@@ -828,6 +851,30 @@ async function cxAction(act,ref,el){
   if(act==="cxNoMatch"){ const cc=S.cases.find(x=>x.ref===ref); if(!cc||!isQG()) return; const on=el.dataset.v==="on";
     await patch("mod/cx/cases/"+ref,{noMatchSince:on?nowMs():null,updatedAt:nowMs(),timeline:[...(cc.timeline||[]),ev(on?"No valid match in CRM yet":"Match found in CRM",on?"Stays in Draft; closes automatically after "+cxc("draftAutoCloseDays")+" days if still unmatched":"")]}); return; }
   const c=S.cases.find(x=>x.ref===ref); if(!c) return;
+  if(act==="cxConsReassign"){
+    if(!(S.admin||isQG())) return toast("Only Q&G can reassign this.");
+    const cc=S.cases.find(x=>x.ref===ref); if(!cc||!["consequence","ready_internal"].includes(cc.status)) return;
+    const dd=draft("rr-"+ref), who=dd.who; if(!who) return toast("Choose who to route this to.");
+    const review={...(cc.review||{}),consequenceManagerId:who};
+    if(await patch("mod/cx/cases/"+ref,{review,updatedAt:nowMs(),timeline:[...(cc.timeline||[]),ev("Internal action reassigned to "+personName(who),dd.why||"")]})){
+      delete S.drafts["rr-"+ref];
+      sendMail({to:[emailOf(who)],cc:[emailOf(managerOf(who))],subject:`Internal action to review: ${cc.ref}`,lines:[`Q&G has routed the pending internal action on ${cc.ref} to you.`,`${(review.consequence||cc.review.consequence)} for ${personName(cc.review.consequenceStaffId)}.`,dd.why?`Reason: ${dd.why}`:""].filter(Boolean),ref,kind:"consequence"});
+      toast("Reassigned.");
+    }
+    return;
+  }
+  if(act==="cxConsReturn"){
+    if(!(S.admin||isQG())) return toast("Only Q&G can send this back.");
+    const cc=S.cases.find(x=>x.ref===ref); if(!cc||cc.status!=="ready_internal") return;
+    const dd=draft(ref), why=String(dd.vetNote||"").trim(); if(!why) return toast("Say what's missing or not sufficient.");
+    const review={...(cc.review||{}),consequenceReturns:[...((cc.review||{}).consequenceReturns||[]),{at:nowMs(),by:S.uid,byName:S.meName,reason:why}]};
+    const owner=consequenceOwner({...cc,review});
+    const n=await moveCase(cc,"consequence",{review,consequenceAck:null},"Sent back by Q&G, not satisfied",why); if(!n) return;
+    delete S.drafts[ref];
+    if(owner.lmId) sendMail({to:[emailOf(owner.lmId)],cc:[emailOf(owner.superiorId)],subject:`More action needed: ${cc.ref}`,lines:[`Q&G reviewed your action on ${cc.ref} and it isn't sufficient yet.`,`Reason: ${why}`,`Please action it again and resubmit.`],ref,kind:"consequence"});
+    toast("Sent back for further action.");
+    return;
+  }
   if(!canAct(c)){ toast("This stage isn't yours to action."); return; }
   const d=draft(ref), p=[];
   if(act==="cxQAttempt"){
@@ -956,9 +1003,10 @@ async function cxAction(act,ref,el){
     return toast("Dispute sent to the Chief Q&G.");
   }
   if(act==="cxInternal"){
+    if(!(S.admin||isQG())) return toast("Only Q&G can close a case internally.");
     const n=await moveCase(c,"closed",{closure:{...(c.closure||{}),internalAt:nowMs(),internalBy:S.uid,internalByName:S.meName}},"Internal closure",""); if(!n) return;
-    const i=c.intake||{};
-    sendMail({to:[emailOf(i.lmId)],cc:[emailOf(i.superiorId)],subject:`Closed internally: ${c.ref}`,lines:[`${c.ref} is now fully closed on the platform.`],ref,kind:"closed"});
+    const owner=consequenceOwner(c), i=c.intake||{};
+    sendMail({to:[emailOf(owner.lmId||i.lmId)],cc:[emailOf(owner.superiorId||i.superiorId)],subject:`Closed internally: ${c.ref}`,lines:[`${c.ref} is now fully closed on the platform.`],ref,kind:"closed"});
     return toast("Case closed.");
   }
   if(act==="cxDecide"){
