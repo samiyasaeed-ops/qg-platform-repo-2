@@ -612,8 +612,9 @@ function caseDetail(c,kind){
   <div class="casehead"><div><h2 class="h2">${vChip(c.venture)} ${esc(c.ref)} ${tsTag(c)} <span class="tag ${c.status==="closed"?"ok":"cx"}">${esc(ST[c.status])}</span>${c.escalated?' <span class="tag amb">Escalated</span>':""}</h2>
   <p class="lead">${esc(caseLine(c))} ${targetLine(c)}</p>
   ${(c.convertedFrom||[]).length?`<p class="hint">Converted from ${esc(c.convertedFrom[c.convertedFrom.length-1].fromType)} by ${esc(c.convertedFrom[c.convertedFrom.length-1].byName)}, ${esc(fmtDT(c.convertedFrom[c.convertedFrom.length-1].at))}.</p>`:""}
-  ${isCallback(c)&&(S.admin||isQG())&&c.status!=="closed"?`<div class="callout amb"><b>This is a callback request.</b> If it's actually a complaint, convert it. The reference, call log and full history stay the same.
-    <div class="row" style="margin-top:6px"><button class="btn sm primary" data-act="cxConvert" data-ref="${esc(c.ref)}">Convert to complaint</button></div></div>`:""}
+  ${(S.admin||isQG())&&c.status!=="closed"?(isCallback(c)?`<div class="callout amb"><b>This is a callback request.</b> If it's actually a complaint, convert it. The reference, call log and full history stay the same.
+    <div class="row" style="margin-top:6px"><button class="btn sm primary" data-act="cxConvert" data-ref="${esc(c.ref)}" data-to="Complaint">Convert to complaint</button></div></div>`:c.type==="Complaint"?`<div class="callout amb"><b>This is a complaint.</b> If it's really a callback request, convert it. The reference, call log and full history stay the same.
+    <div class="row" style="margin-top:6px"><button class="btn sm" data-act="cxConvert" data-ref="${esc(c.ref)}" data-to="Callback request">Convert to callback request</button></div></div>`:""):""}
   <div class="stamps flat">Received ${stampCell(c.receivedAt)}<span class="dot">·</span>Registered ${stampCell(c.createdAt)}<span class="dot">·</span>Last updated ${stampCell(c.updatedAt||c.createdAt)}<span class="dot">·</span>${c.status==="closed"?"Total time "+esc(fmtTat(workHoursBetween(c.createdAt,ts((c.closure||{}).internalAt),S.cfg))):"Open for "+esc(fmtTat(workHoursBetween(c.createdAt,nowMs(),S.cfg)))}</div>
   <div class="row"><label class="inline">Q&G owner ${isQG()&&c.status!=="closed"?`<select data-assign="${esc(c.ref)}">${qgOpts(c.assigneeId)}</select>`:`<b>${esc(c.assigneeId?personName(c.assigneeId):"Unassigned")}</b>`}</label></div></div>
   <div class="due">${c.status==="closed"?`Closed ${esc(fmtDT(cl.internalAt))}${cl.reason?"<br>"+esc(cl.reason):""}${isQG()?`<br><button class="btn sm" data-act="cxReopen" data-ref="${esc(c.ref)}">Reopen</button> <button class="btn sm" data-act="cxFollowUp" data-ref="${esc(c.ref)}">Raise a follow-up case</button>`:""}`:`With <b>${esc(ownerLabel(c))}</b><br>${d<nowMs()?`<span class="tag red">Overdue since ${esc(fmtDT(d))}</span>`:`Due ${esc(fmtDT(d))}`}${c.reminderCount?`<br><span class="muted">${c.reminderCount} reminder${c.reminderCount>1?"s":""} sent</span>`:""}`}</div></div>`;
@@ -792,14 +793,16 @@ async function cxAction(act,ref,el){
   }
   if(act==="cxConvert"){
     const cc=S.cases.find(x=>x.ref===ref); if(!cc) return;
-    if(!(S.admin||isQG())) return toast("Only Q&G can convert a callback.");
-    if(!isCallback(cc)) return toast("Only a callback request can be converted.");
+    if(!(S.admin||isQG())) return toast("Only Q&G can convert this case.");
+    const to=el.dataset.to||(isCallback(cc)?"Complaint":"Callback request");
+    const fromKind=isCallback(cc)?"callbacks":"complaints", toKind=to==="Callback request"?"callbacks":"complaints";
+    if(fromKind===toKind) return toast("This case is already a "+cc.type.toLowerCase()+".");
     if(cc.status==="closed") return toast("This case is already closed.");
-    if(!confirm("Convert "+cc.ref+" from a callback request to a complaint? The reference, call log and full history stay as they are; this just changes how it's handled from here.")) return;
+    if(!confirm("Convert "+cc.ref+" from "+(fromKind==="callbacks"?"a callback request":"a complaint")+" to "+(toKind==="callbacks"?"a callback request":"a complaint")+"? The reference, call log and full history stay as they are; this just changes how it's handled from here.")) return;
     const conv={at:nowMs(),by:S.uid,byName:S.meName,fromType:cc.type};
-    if(await patch("mod/cx/cases/"+ref,{type:"Complaint",convertedFrom:[...(cc.convertedFrom||[]),conv],updatedAt:nowMs(),timeline:[...(cc.timeline||[]),ev("Converted to Complaint","From "+cc.type+", by "+S.meName)]})){
-      await addAudit("case",ref,"Converted to Complaint",{type:cc.type},{type:"Complaint"},S.meName);
-      S.sel.callbacks=null; S.sel.complaints=ref; go("complaints"); toast(ref+" converted to a complaint.");
+    if(await patch("mod/cx/cases/"+ref,{type:to,convertedFrom:[...(cc.convertedFrom||[]),conv],updatedAt:nowMs(),timeline:[...(cc.timeline||[]),ev("Converted to "+(to==="Callback request"?"a callback request":"a complaint"),"From "+cc.type+", by "+S.meName)]})){
+      await addAudit("case",ref,"Converted to "+to,{type:cc.type},{type:to},S.meName);
+      S.sel[fromKind]=null; S.sel[toKind]=ref; go(toKind); toast(ref+" converted.");
     }
     return;
   }
