@@ -444,22 +444,32 @@ function dueOf(c){ const k=STAGE_SLA[c.status]; if(!k) return null; return addWo
 const overdue=c=>{ const d=dueOf(c); return d!=null&&d<nowMs(); };
 function ownerLabel(c){
   if(["intake","qg_review","ready_internal"].includes(c.status)) return "Q&G";
-  if(["with_lm","consequence"].includes(c.status)) return personName(c.intake&&c.intake.lmId);
+  if(c.status==="with_lm") return personName(c.intake&&c.intake.lmId);
+  if(c.status==="consequence") return personName(consequenceOwner(c).lmId)||"Nobody set";
   if(c.status==="dispute") return "Chief Q&G";
   return "—";
+}
+/* Who handles the consequence: the actual line manager of the person it applies to,
+   found fresh from Staff list, with a fallback if that person has no manager on record. */
+function consequenceOwner(c){
+  const r=c.review||{};
+  const mgr=r.consequenceStaffId?managerOf(r.consequenceStaffId):null;
+  return {lmId:mgr||(c.intake||{}).lmId||null,superiorId:mgr?managerOf(mgr):(c.intake||{}).superiorId||null,fellBack:!mgr};
 }
 function canAct(c){
   if(S.admin) return true;
   const me=meStaff(), mid=me&&me.id, i=c.intake||{};
   if(["intake","qg_review","ready_internal"].includes(c.status)) return isQG();
-  if(["with_lm","consequence"].includes(c.status)) return !!mid&&(mid===i.lmId||mid===i.superiorId);
+  if(c.status==="with_lm") return !!mid&&(mid===i.lmId||mid===i.superiorId);
+  if(c.status==="consequence"){ const o=consequenceOwner(c); return !!mid&&(mid===o.lmId||mid===o.superiorId); }
   if(c.status==="dispute") return isChief();
   return false;
 }
 function stageRecipients(c){
   const i=c.intake||{};
   if(["intake","qg_review","ready_internal"].includes(c.status)) return {to:c.assigneeId&&emailOf(c.assigneeId)?[emailOf(c.assigneeId)]:i.routedBy&&emailOf(i.routedBy)?[emailOf(i.routedBy)]:qgEmails(),cc:[]};
-  if(["with_lm","consequence"].includes(c.status)) return {to:[emailOf(i.lmId)],cc:[emailOf(i.superiorId)]};
+  if(c.status==="with_lm") return {to:[emailOf(i.lmId)],cc:[emailOf(i.superiorId)]};
+  if(c.status==="consequence"){ const o=consequenceOwner(c); return {to:[emailOf(o.lmId)],cc:[emailOf(o.superiorId)]}; }
   if(c.status==="dispute") return {to:chiefEmails(),cc:qgEmails()};
   return {to:[],cc:[]};
 }
@@ -740,8 +750,10 @@ function caseDetail(c,kind){
   if(["consequence","ready_internal"].includes(c.status)||c.consequenceAck){
     s5+=`<div class="stamps flat"><span class="tag ok">Closed for the customer</span><span class="dot">·</span><span class="tag amb">Internal: pending ${esc(r.consequence)} for ${esc(personName(r.consequenceStaffId))}</span></div>`;
   }
+  if(c.status==="consequence"){ const co=consequenceOwner(c); if(co.fellBack&&co.lmId) s5+=`<div class="callout amb">${esc(personName(r.consequenceStaffId))} has no manager set in Staff list, so this fell back to ${esc(personName(co.lmId))}, who handled the case. Set their manager in Staff list for this to route correctly in future.</div>`; else if(!co.lmId) s5+=`<div class="callout amb"><b>Nobody to route this to.</b> ${esc(personName(r.consequenceStaffId))} has no line manager in Staff list. Set one, or action this directly as admin.</div>`; }
   if(c.status==="consequence"&&act){
-    s5+=`<div class="callout"><b>Consequence to action: ${esc(r.consequence)}</b> for ${esc(personName(r.consequenceStaffId))}. Routed to ${esc(personName(i.lmId))} pending this action. ${esc(r.consequenceNote)}</div>
+    const co=consequenceOwner(c);
+    s5+=`<div class="callout"><b>Consequence to action: ${esc(r.consequence)}</b> for ${esc(personName(r.consequenceStaffId))}. Routed to ${esc(personName(co.lmId))} pending this action. ${esc(r.consequenceNote)}</div>
     <div class="form"><label class="f"><span class="req">What you did, or why you dispute it</span><textarea rows="3" data-d="${k}" data-f="ackNote">${esc(dv(k,"ackNote",""))}</textarea></label>
     <div class="row"><button class="btn primary" data-act="cxAck" data-ref="${k}">Confirm consequence actioned</button><button class="btn" data-act="cxDispute" data-ref="${k}">Dispute the consequence</button></div></div>`;
   } else if(c.consequenceAck) s5+=kv([[c.consequenceAck.action==="ack"?"Consequence actioned":"Disputed",esc(c.consequenceAck.note)+" ("+esc(c.consequenceAck.byName||"")+", "+esc(fmtDT(c.consequenceAck.at))+")"]]);
@@ -924,7 +936,9 @@ async function cxAction(act,ref,el){
     const n=await moveCase(c,"consequence",{review,closure,csat:csatDoc,pendingCalls:pendingFor(c).filter(x=>x.purpose!=="val")},"External closure; consequence relayed",review.consequence+" for "+personName(review.consequenceStaffId)); if(!n) return;
     delete S.drafts[ref];
     await logBreachFromCase(n);
-    sendMail({to:[emailOf(i.lmId)],cc:[emailOf(i.superiorId)],subject:`Consequence to action: ${c.ref}`,lines:[`Q&G closed ${c.ref} for the customer. Validity: ${review.verdict}.`,`Consequence: ${review.consequence} for ${personName(review.consequenceStaffId)}.`,`Detail: ${review.consequenceNote}`,`Confirm it's actioned, or dispute it with your reasons, by ${fmtDT(dueOf(n))}. The case closes internally once this is done.`],ref,kind:"consequence"});
+    const owner=consequenceOwner(n);
+    if(owner.lmId) sendMail({to:[emailOf(owner.lmId)],cc:[emailOf(owner.superiorId)],subject:`Consequence to action: ${c.ref}`,lines:[`Q&G closed ${c.ref} for the customer. Validity: ${review.verdict}.`,`Consequence: ${review.consequence} for ${personName(review.consequenceStaffId)}.`,`Detail: ${review.consequenceNote}`,`Confirm it's actioned, or dispute it with your reasons, by ${fmtDT(dueOf(n))}. The case closes internally once this is done.`],ref,kind:"consequence"});
+    else sendMail({to:qgEmails(),subject:`No manager on record to action a consequence: ${c.ref}`,lines:[`${c.ref} has a consequence (${review.consequence} for ${personName(review.consequenceStaffId)}) but that person has no line manager set in Staff list, so nobody has been notified to action it.`,`Set their manager in Staff list, or action it directly as admin.`],ref,kind:"consequence"});
     return toast("Closed for the customer. Consequence sent to the line manager.");
   }
   if(act==="cxAck"||act==="cxDispute"){
