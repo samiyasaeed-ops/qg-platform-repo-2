@@ -611,6 +611,9 @@ function caseDetail(c,kind){
   const head=`<div class="crumbs"><button class="linkbtn" data-act="cxBack" data-k="${kind}">${kind==="callbacks"?"Callbacks":"Complaints management"}</button> / ${esc(c.ref)}</div>
   <div class="casehead"><div><h2 class="h2">${vChip(c.venture)} ${esc(c.ref)} ${tsTag(c)} <span class="tag ${c.status==="closed"?"ok":"cx"}">${esc(ST[c.status])}</span>${c.escalated?' <span class="tag amb">Escalated</span>':""}</h2>
   <p class="lead">${esc(caseLine(c))} ${targetLine(c)}</p>
+  ${(c.convertedFrom||[]).length?`<p class="hint">Converted from ${esc(c.convertedFrom[c.convertedFrom.length-1].fromType)} by ${esc(c.convertedFrom[c.convertedFrom.length-1].byName)}, ${esc(fmtDT(c.convertedFrom[c.convertedFrom.length-1].at))}.</p>`:""}
+  ${isCallback(c)&&(S.admin||isQG())&&c.status!=="closed"?`<div class="callout amb"><b>This is a callback request.</b> If it's actually a complaint, convert it. The reference, call log and full history stay the same.
+    <div class="row" style="margin-top:6px"><button class="btn sm primary" data-act="cxConvert" data-ref="${esc(c.ref)}">Convert to complaint</button></div></div>`:""}
   <div class="stamps flat">Received ${stampCell(c.receivedAt)}<span class="dot">·</span>Registered ${stampCell(c.createdAt)}<span class="dot">·</span>Last updated ${stampCell(c.updatedAt||c.createdAt)}<span class="dot">·</span>${c.status==="closed"?"Total time "+esc(fmtTat(workHoursBetween(c.createdAt,ts((c.closure||{}).internalAt),S.cfg))):"Open for "+esc(fmtTat(workHoursBetween(c.createdAt,nowMs(),S.cfg)))}</div>
   <div class="row"><label class="inline">Q&G owner ${isQG()&&c.status!=="closed"?`<select data-assign="${esc(c.ref)}">${qgOpts(c.assigneeId)}</select>`:`<b>${esc(c.assigneeId?personName(c.assigneeId):"Unassigned")}</b>`}</label></div></div>
   <div class="due">${c.status==="closed"?`Closed ${esc(fmtDT(cl.internalAt))}${cl.reason?"<br>"+esc(cl.reason):""}${isQG()?`<br><button class="btn sm" data-act="cxReopen" data-ref="${esc(c.ref)}">Reopen</button> <button class="btn sm" data-act="cxFollowUp" data-ref="${esc(c.ref)}">Raise a follow-up case</button>`:""}`:`With <b>${esc(ownerLabel(c))}</b><br>${d<nowMs()?`<span class="tag red">Overdue since ${esc(fmtDT(d))}</span>`:`Due ${esc(fmtDT(d))}`}${c.reminderCount?`<br><span class="muted">${c.reminderCount} reminder${c.reminderCount>1?"s":""} sent</span>`:""}`}</div></div>`;
@@ -628,7 +631,8 @@ function caseDetail(c,kind){
   // 2 Q&G first review & routing
   let s2;
   if(c.status==="intake"&&act){
-    const teams=Object.values(S.teams).filter(t=>t.kind!=="qg"&&t.active!==false&&t.venture===c.venture).sort((a,b)=>a.name.localeCompare(b.name));
+    const allTeams=Object.values(S.teams).filter(t=>t.kind!=="qg"&&t.active!==false&&t.venture===c.venture).sort((a,b)=>a.name.localeCompare(b.name));
+    const teams=allTeams.filter(t=>t.lob===c.lob), otherLobTeams=allTeams.filter(t=>t.lob!==c.lob);
     const tsel=dv(k,"teamId",""), t=S.teams[tsel];
     s2=`<div class="form">
       <label class="f"><span class="req">Q&G assessment</span><textarea rows="3" data-d="${k}" data-f="comment">${esc(dv(k,"comment",""))}</textarea></label>
@@ -640,7 +644,8 @@ function caseDetail(c,kind){
           <label class="f"><span class="req">Call ID</span><input data-d="${k}" data-f="qCall" value="${esc(dv(k,"qCall",""))}"></label>
           <label class="f"><span class="req">Outcome</span><select data-d="${k}" data-f="qOutcome">${opts(OUTCOMES,dv(k,"qOutcome",""),"Choose")}</select></label></div>
           <button class="btn" data-act="cxQAttempt" data-ref="${k}">Log attempt ${qa.length+1}</button><p class="hint">Q&G calls are logged on the day you submit this review. Routing needs the customer reached, or three attempts.</p>`:reached?`<p class="hint">Customer reached.</p>`:`<p class="hint">Three attempts made without reaching the customer.</p>`}</div>`; })():""}
-      <label class="f"><span class="req">Route to team</span><select data-d="${k}" data-f="teamId">${opts(teams.map(t=>({v:t.id,l:t.name+" · "+t.lob})),tsel,teams.length?"Choose the LOB team":"No "+vInfo(c.venture).name+" teams yet. Add them in Staff list")}</select></label>
+      <label class="f"><span class="req">Route to team</span><select data-d="${k}" data-f="teamId">${opts(teams.map(t=>({v:t.id,l:t.name+" · "+t.lob})),tsel,teams.length?"Choose the "+esc(c.lob)+" team":otherLobTeams.length?"No "+esc(c.lob)+" team yet; LOB is wrong, or add one in Staff list":"No "+vInfo(c.venture).name+" teams yet. Add them in Staff list")}</select></label>
+      ${!teams.length&&otherLobTeams.length?`<p class="hint">This case is ${esc(c.lob)}, but the only teams set up are: ${otherLobTeams.map(t=>t.name+" ("+t.lob+")").join(", ")}. If ${esc(c.lob)} is wrong, correct it under “Add or correct the classification” above; otherwise add a ${esc(c.lob)} team in Staff list.</p>`:""}
       ${t?(()=>{ const auto=routeTargets(t,c.staffId), chosen=dv(k,"handlerId",""), tg=routeTargets(t,c.staffId,chosen||null), members=teamMembersToday(t).filter(p=>p.id!==c.staffId), venturePeople=staffFor(c.venture).filter(p=>p.id!==c.staffId);
         const needPick=!t.lineManagerId||t.lineManagerId===c.staffId;
         return `${needPick?`<div class="callout amb"><b>${esc(t.name)} has no line manager set${t.lineManagerId===c.staffId?" who isn't the person the case is about":""}.</b> Choose who handles it.${auto&&auto.lmId?" Suggested: "+esc(personName(auto.lmId))+", the team's line manager by role.":""}
@@ -659,9 +664,12 @@ function caseDetail(c,kind){
   const atts=lm.attempts||[];
   const attTable=atts.length?`<div class="tbl sm"><table><thead><tr><th>Attempt</th><th>Call date and time</th><th>Logged</th><th>Call ID</th><th>Outcome</th></tr></thead><tbody>${atts.map((a,n)=>`<tr><td>${n+1}</td><td>${esc(fmtD(a.date))} ${esc(a.time)}</td><td>${stampCell(a.at)}</td><td>${esc(a.callId)}</td><td>${a.outcome==="Reached"?'<span class="tag ok">Reached</span>':esc(a.outcome)}</td></tr>`).join("")}</tbody></table></div>`:"";
   const returns=(lm.returns||[]).map(x=>`<div class="callout amb"><b>Returned by Q&G ${esc(fmtDT(x.at))}</b> ${esc(x.reason)}</div>`).join("");
+  const recalls=(c.recalls||[]);
+  const recallBanner=recalls.length?recalls.map(x=>`<div class="callout amb"><b>Recalled to Q&G ${esc(fmtDT(x.at))} by ${esc(x.byName||"")}</b> ${esc(x.why)}</div>`).join(""):"";
+  const recallBtn=c.status==="with_lm"&&(S.admin||isQG())?`<div class="row" style="margin-bottom:8px"><button class="btn sm" data-act="cxRecall" data-ref="${esc(c.ref)}">Recall to Q&G</button><span class="hint" style="margin:0">If this was routed to the wrong queue, or the line manager's action is incomplete.</span></div>`:"";
   if(c.status==="with_lm"&&act){
     const reached=atts.some(a=>a.outcome==="Reached"), unreachable=atts.length>=3&&!reached;
-    s3=`${returns}${pendingBanner(c,"lm")}${attTable}${!reached&&atts.length<3?`<div class="form inset"><div class="row between"><b class="sm">Log call attempt ${atts.length+1} of 3</b>${callBtn(c,"lm")}</div><div class="g4">
+    s3=`${recallBtn}${returns}${pendingBanner(c,"lm")}${attTable}${!reached&&atts.length<3?`<div class="form inset"><div class="row between"><b class="sm">Log call attempt ${atts.length+1} of 3</b>${callBtn(c,"lm")}</div><div class="g4">
         <label class="f"><span class="req">Date</span><input type="date" data-d="${k}" data-f="aDate" value="${esc(dv(k,"aDate",todayD()))}" max="${todayD()}" min="${esc(dateOf(i.routedAt))}"></label>
         <label class="f"><span class="req">Time</span><input type="time" data-d="${k}" data-f="aTime" value="${esc(dv(k,"aTime",""))}"></label>
         <label class="f"><span class="req">Call ID</span><input data-d="${k}" data-f="aCall" value="${esc(dv(k,"aCall",""))}"></label>
@@ -680,8 +688,8 @@ function caseDetail(c,kind){
         <div class="row"><button class="btn primary" data-act="cxResolve" data-ref="${k}">Submit as resolved</button></div>`:`<p class="hint">Log each call. Submit becomes available once the customer is reached or after three unsuccessful attempts.</p>`}
       </div>`;
   } else if(lm.submittedAt){
-    s3=returns+attTable+kv([["Resolution agreed",esc(lm.resolution)],["Email to customer",lm.emailSubject?`“${esc(lm.emailSubject)}”${lm.sharedWithQG?", shared with Q&G":""}`:""],["Attachment",lm.attachment?`<a href="/_blob/${esc(lm.attachment.id)}" target="_blank" rel="noopener">${esc(lm.attachment.name)}</a>`:""],["Findings",esc(lm.findings)],["Submitted",esc(personName(lm.submittedBy))+" on "+esc(fmtDT(lm.submittedAt))]]);
-  } else s3=returns+(attTable||`<p class="muted">${c.status==="with_lm"?"Waiting for "+esc(personName(i.lmId))+".":"Not reached yet."}</p>`);
+    s3=recallBtn+returns+attTable+kv([["Resolution agreed",esc(lm.resolution)],["Email to customer",lm.emailSubject?`“${esc(lm.emailSubject)}”${lm.sharedWithQG?", shared with Q&G":""}`:""],["Attachment",lm.attachment?`<a href="/_blob/${esc(lm.attachment.id)}" target="_blank" rel="noopener">${esc(lm.attachment.name)}</a>`:""],["Findings",esc(lm.findings)],["Submitted",esc(personName(lm.submittedBy))+" on "+esc(fmtDT(lm.submittedAt))]]);
+  } else s3=recallBtn+returns+(attTable||`<p class="muted">${c.status==="with_lm"?"Waiting for "+esc(personName(i.lmId))+".":"Not reached yet."}</p>`);
 
   // 4 Q&G assessment
   let s4;
@@ -728,12 +736,15 @@ function caseDetail(c,kind){
   // 5 closure + consequence
   let s5="";
   if(cl.externalAt) s5+=kv([["External closure",esc(fmtDT(cl.externalAt))+" by "+esc(cl.externalByName||"")]]);
+  if(["consequence","ready_internal"].includes(c.status)||c.consequenceAck){
+    s5+=`<div class="stamps flat"><span class="tag ok">Closed for the customer</span><span class="dot">·</span><span class="tag amb">Internal: pending ${esc(r.consequence)} for ${esc(personName(r.consequenceStaffId))}</span></div>`;
+  }
   if(c.status==="consequence"&&act){
-    s5+=`<div class="callout"><b>Consequence to action: ${esc(r.consequence)}</b> for ${esc(personName(r.consequenceStaffId))}. ${esc(r.consequenceNote)}</div>
+    s5+=`<div class="callout"><b>Consequence to action: ${esc(r.consequence)}</b> for ${esc(personName(r.consequenceStaffId))}. Routed to ${esc(personName(i.lmId))} pending this action. ${esc(r.consequenceNote)}</div>
     <div class="form"><label class="f"><span class="req">What you did, or why you dispute it</span><textarea rows="3" data-d="${k}" data-f="ackNote">${esc(dv(k,"ackNote",""))}</textarea></label>
     <div class="row"><button class="btn primary" data-act="cxAck" data-ref="${k}">Confirm consequence actioned</button><button class="btn" data-act="cxDispute" data-ref="${k}">Dispute the consequence</button></div></div>`;
   } else if(c.consequenceAck) s5+=kv([[c.consequenceAck.action==="ack"?"Consequence actioned":"Disputed",esc(c.consequenceAck.note)+" ("+esc(c.consequenceAck.byName||"")+", "+esc(fmtDT(c.consequenceAck.at))+")"]]);
-  if(c.status==="ready_internal"&&act) s5+=`<div class="row"><button class="btn primary" data-act="cxInternal" data-ref="${k}">Close internally</button></div><p class="hint">Internal closure completes the case. The line manager and their superior get the closure email.</p>`;
+  if(c.status==="ready_internal"&&act) s5+=`<div class="callout ok"><b>Internal action confirmed.</b> Ready for Q&G to close the case in full.</div><div class="row"><button class="btn primary" data-act="cxInternal" data-ref="${k}">Close internally, with validity ${esc(r.verdict)}</button></div><p class="hint">Internal closure completes the case. The line manager and their superior get the closure email.</p>`;
   if(cl.internalAt) s5+=kv([["Internal closure",esc(fmtDT(cl.internalAt))+" by "+esc(cl.internalByName||"")]]);
   if(cl.externalAt) s5+=`<div class="csatbox"><h4>Customer satisfaction (CSAT)</h4>${csatView(c)}${isQG()&&(!c.csat||c.csat.status!=="Captured")?`<details class="inset"><summary>${c.csat?"Update CSAT":"Record CSAT"}</summary>${csatForm("csat-"+c.ref,c)}<button class="btn sm primary" data-act="cxCsat" data-ref="${esc(c.ref)}">Save CSAT</button></details>`:""}</div>`;
   if(!s5) s5=`<p class="muted">After Q&G's assessment.</p>`;
@@ -769,6 +780,29 @@ async function cxAction(act,ref,el){
   if(act==="cxFollowUp") return startFollowUp(ref);
   if(act==="cxCopyLink"){ try{ await navigator.clipboard.writeText(cxc("csatLink")); toast("Link copied."); }catch(_){ toast("Copy the link from the box."); } return; }
   if(["cxRespDraft","cxRespApprove","cxRespNone","cxRespPosted"].includes(act)){ const cc=S.cases.find(x=>x.ref===ref); if(cc) await respAction(act,cc); return; }
+  if(act==="cxRecall"){
+    const cc=S.cases.find(x=>x.ref===ref); if(!cc) return;
+    if(!(S.admin||isQG())) return toast("Only Q&G can recall a case.");
+    if(cc.status!=="with_lm") return toast("Only a case currently with the line manager can be recalled.");
+    const why=prompt("Why is "+cc.ref+" being recalled to Q&G? For example, routed to the wrong queue, or the line manager's action is incomplete."); if(!why||!why.trim()) return;
+    const i=cc.intake||{};
+    const n=await moveCase(cc,"intake",{recalls:[...(cc.recalls||[]),{from:i.teamId,fromLm:i.lmId,at:nowMs(),by:S.uid,byName:S.meName,why:why.trim()}]},"Recalled to Q&G",why.trim()); if(!n) return;
+    sendMail({to:[emailOf(i.lmId)],cc:[emailOf(i.superiorId)],subject:`Recalled to Q&G: ${cc.ref}`,lines:[`${cc.ref} has been pulled back to Q&G by ${S.meName}, and is no longer in your queue.`,`Reason: ${why.trim()}`],ref:cc.ref,kind:"recall"});
+    return toast(cc.ref+" recalled to Q&G.");
+  }
+  if(act==="cxConvert"){
+    const cc=S.cases.find(x=>x.ref===ref); if(!cc) return;
+    if(!(S.admin||isQG())) return toast("Only Q&G can convert a callback.");
+    if(!isCallback(cc)) return toast("Only a callback request can be converted.");
+    if(cc.status==="closed") return toast("This case is already closed.");
+    if(!confirm("Convert "+cc.ref+" from a callback request to a complaint? The reference, call log and full history stay as they are; this just changes how it's handled from here.")) return;
+    const conv={at:nowMs(),by:S.uid,byName:S.meName,fromType:cc.type};
+    if(await patch("mod/cx/cases/"+ref,{type:"Complaint",convertedFrom:[...(cc.convertedFrom||[]),conv],updatedAt:nowMs(),timeline:[...(cc.timeline||[]),ev("Converted to Complaint","From "+cc.type+", by "+S.meName)]})){
+      await addAudit("case",ref,"Converted to Complaint",{type:cc.type},{type:"Complaint"},S.meName);
+      S.sel.callbacks=null; S.sel.complaints=ref; go("complaints"); toast(ref+" converted to a complaint.");
+    }
+    return;
+  }
   if(act==="cxReopen"){ const cc=S.cases.find(x=>x.ref===ref); if(!cc||!isQG()) return; const why=prompt("Why is this case being reopened?"); if(!why||!why.trim()) return;
     await moveCase(cc,"qg_review",{closure:{},closureHistory:[...(cc.closureHistory||[]),{...(cc.closure||{}),reopenedAt:nowMs(),reopenedBy:S.meName,why:why.trim()}]},"Reopened by Q&G",why.trim()); return toast("Reopened for Q&G review."); }
   if(act==="cxClassify"){ const cc=S.cases.find(x=>x.ref===ref); if(!cc||!isQG()) return; const d=draft("cl-"+ref);
@@ -795,7 +829,8 @@ async function cxAction(act,ref,el){
     if(contacted==="yes"){ need(qa.length,"at least one logged Q&G call attempt",p); need(reachedA||qa.length>=3,"the customer reached, or three attempts",p); need(qa.every(a=>a.date===todayD()),"Q&G call attempts dated today",p); }
     if(pendingFor(c,"qg").length) p.push("the outcome of the call you started");
     d.contacted=contacted; const lastA=reachedA||qa[qa.length-1]; if(lastA){ d.callRef=lastA.callId; d.contactDate=lastA.date; d.contactTime=lastA.time; }
-    const t=S.teams[d.teamId]; need(t,"the team to route to",p); const tg=t?routeTargets(t,c.staffId,d.handlerId||null):null; if(t) need(tg&&tg.lmId,"who handles it ("+t.name+" has no line manager set)",p);
+    const t=S.teams[d.teamId]; need(t,"the team to route to",p); if(t&&t.lob!==c.lob) return lobMismatch(t,c);
+    const tg=t?routeTargets(t,c.staffId,d.handlerId||null):null; if(t) need(tg&&tg.lmId,"who handles it ("+t.name+" has no line manager set)",p);
     if(p.length) return toast("Add "+p.join(", ")+".");
     const me=meStaff();
     const intake={comment:d.comment.trim(),contacted:d.contacted,callRef:d.callRef||"",contactDate:d.contacted==="yes"?(d.contactDate||todayD()):"",contactTime:d.contacted==="yes"?(d.contactTime||dLocal(nowMs()).toISOString().slice(11,16)):"",
@@ -1052,6 +1087,15 @@ function csatLinkBlock(k,c){
    <div class="row"><label class="radio"><input type="checkbox" data-d="${k}" data-f="csatLinkSent"${dv(k,"csatLinkSent",false)?" checked":""}> Sent to the customer with the resolution</label>
     <select data-d="${k}" data-f="csatLinkMethod">${opts(["Email","SMS","WhatsApp"],dv(k,"csatLinkMethod","Email"))}</select></div>
    ${!dv(k,"csatLinkSent",false)?`<label class="f"><span>If not sent, why</span><input data-d="${k}" data-f="csatLinkReason" value="${esc(dv(k,"csatLinkReason",""))}"></label>`:""}</fieldset>`;
+}
+function lobMismatch(t,c){
+  const el=document.getElementById("alertHost");
+  if(el) el.innerHTML=`<div class="alertbox" role="alertdialog" aria-modal="true" aria-labelledby="mmT"><h2 id="mmT" style="color:var(--red)">Incorrect selection</h2>
+   <p><b>${esc(t.name)}</b> handles <b>${esc(t.lob)}</b>, but this case is logged as <b>${esc(c.lob)}</b>. A ${esc(c.lob)} case can't be routed to a ${esc(t.lob)} team.</p>
+   <p>Either:</p><ul><li>Choose a team that handles ${esc(c.lob)}, or</li><li>If ${esc(c.lob)} is wrong on this case, open "Add or correct the classification" above and change the line of business first.</li></ul>
+   <div class="row"><button class="btn primary" data-act="alertLater">Got it</button></div></div>`;
+  if(el){ el.hidden=false; const b=el.querySelector(".btn"); if(b) b.focus(); }
+  return toast("Can't route: "+t.name+" handles "+t.lob+", not "+c.lob+".");
 }
 
 /* ================= Complaints & feedback: taxonomy, ticket status, automation, reports ================= */

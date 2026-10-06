@@ -11,10 +11,14 @@ const { chromium } = require('playwright');
   const nav = async k => { if(await p.$('#alertHost:not([hidden]) [data-act="alertAck"]')){ console.log('ALERT shown:', (await p.textContent('#alertHost')).replace(/\s+/g,' ').slice(0,160)); await p.click('[data-act="alertAck"]'); await p.waitForTimeout(300);} await p.click(`#rail [data-nav="${k}"]`); await p.waitForTimeout(250); };
   const fill = async (k,f,v) => { await p.fill(`[data-d="${k}"][data-f="${f}"]`, v); };
   const sel = async (k,f,v) => { await p.selectOption(`[data-d="${k}"][data-f="${f}"]`, v); await p.waitForTimeout(120); };
-  const click = async s => { if(await p.$('#alertHost:not([hidden]) [data-act="alertAck"]')){ await p.click('[data-act="alertAck"]'); await p.waitForTimeout(300);} await p.click(s); await p.waitForTimeout(350); };
+  const dismissAlert = async () => { if(await p.$('#alertHost:not([hidden]) [data-act="alertAck"]')){ await p.click('[data-act="alertAck"]'); await p.waitForTimeout(300); return true; } return false; };
+  const click = async s => { await dismissAlert();
+    try{ await p.click(s); }
+    catch(e){ if(await dismissAlert()) await p.click(s); else throw e; }
+    await p.waitForTimeout(350); };
   const store = path => p.evaluate(x=>window.__store.get(x), path);
   // register case
-  await nav('complaints'); await click('[data-act="cxNew"]'); { const vb=await p.$('[data-act="vStepPick"][data-v="insurancemarket"]'); if(vb){ await vb.click(); await p.waitForTimeout(250);} }
+  await nav('complaints'); await click('[data-act="cxNew"]'); { await dismissAlert(); const vb=await p.$('[data-act="vStepPick"][data-v="insurancemarket"]'); if(vb){ await vb.click(); await p.waitForTimeout(250);} }
   const K='new-complaints';
   await sel(K,'source','Google review'); await fill(K,'dealRef','DL-4471'); await sel(K,'lob','insurancemarket|Motor');
   await fill(K,'subject','Renewal premium increased without explanation'); await fill(K,'description','Customer says premium went up 30% and nobody called back.');
@@ -43,6 +47,7 @@ const { chromium } = require('playwright');
   await sel(ref,'businessOutcome','Retained'); await p.check(`input[name="csv-${ref}"][value="4"]`); await p.waitForTimeout(200);
   await p.screenshot({path:'out/04-review.png', fullPage:true});
   await click('[data-act="cxExternal"]'); console.log('toast:', await p.textContent('#toast')); console.log('after external', (await store('mod/cx/cases/'+ref)).status);
+  await p.screenshot({path:'04b-consequence.png', fullPage:true});
   await fill(ref,'ackNote','Advisor followed procedure; warning is unfair.'); await click('[data-act="cxDispute"]');
   console.log('after dispute', (await store('mod/cx/cases/'+ref)).status);
   await sel(ref,'decision','Uphold the consequence'); await fill(ref,'decisionNote','Evidence supports it.'); await click('[data-act="cxDecide"]');
@@ -65,14 +70,14 @@ const { chromium } = require('playwright');
   console.log('pb', JSON.stringify((await store('mod/pb/playbooks/mystery'))?.versions.length));
   await p.screenshot({path:'out/10-pb.png'});
   // register record
-  await click('[data-act="setView"][data-v="records"]'); await click('[data-act="regNew"]'); { const vb=await p.$('[data-act="vStepPick"][data-v="insurancemarket"]'); if(vb){ await vb.click(); await p.waitForTimeout(250);} } await sel('r-new-mystery','lob','insurancemarket|Motor'); await sel('r-new-mystery','channel','Call'); await fill('r-new-mystery','scenario','Ask for comprehensive quote'); await click('[data-act="regSave"]');
+  await click('[data-act="setView"][data-v="records"]'); await click('[data-act="regNew"]'); { await dismissAlert(); const vb=await p.$('[data-act="vStepPick"][data-v="insurancemarket"]'); if(vb){ await vb.click(); await p.waitForTimeout(250);} } await sel('r-new-mystery','lob','insurancemarket|Motor'); await sel('r-new-mystery','channel','Call'); await fill('r-new-mystery','scenario','Ask for comprehensive quote'); await click('[data-act="regSave"]');
   console.log('ms rec', await p.evaluate(()=>[...window.__store.keys()].filter(k=>k.includes('/MS-')).length));
   // email failure + error report retry
   await p.evaluate(()=>window.__failMail=true);
-  await nav('callbacks'); await click('[data-act="cxNew"]'); { const vb=await p.$('[data-act="vStepPick"][data-v="insurancemarket"]'); if(vb){ await vb.click(); await p.waitForTimeout(250);} } await sel('new-callbacks','source','Website Contact Us form'); await fill('new-callbacks','mobile','0559876543'); await sel('new-callbacks','lob','insurancemarket|Health'); await fill('new-callbacks','subject','Call me about health plan'); await fill('new-callbacks','description','Wants a call.'); await click('[data-act="cxCreate"]'); await p.waitForTimeout(400);
+  await nav('callbacks'); await click('[data-act="cxNew"]'); { await dismissAlert(); const vb=await p.$('[data-act="vStepPick"][data-v="insurancemarket"]'); if(vb){ await vb.click(); await p.waitForTimeout(250);} } await sel('new-callbacks','source','Website Contact Us form'); await fill('new-callbacks','mobile','0559876543'); await sel('new-callbacks','lob','insurancemarket|Health'); await fill('new-callbacks','subject','Call me about health plan'); await fill('new-callbacks','description','Wants a call.'); await click('[data-act="cxCreate"]'); await p.waitForTimeout(400);
   await p.evaluate(()=>window.__failMail=false);
   await nav('errors'); await p.screenshot({path:'out/11-errors.png'});
-  const before=await p.evaluate(()=>window.__sent.length); if(await p.$('#alertHost:not([hidden]) [data-act="alertAck"]')){ await p.click('[data-act="alertAck"]'); await p.waitForTimeout(300);} const rb=await p.$('[data-act="errRetry"]'); if(rb){ await rb.click(); await p.waitForTimeout(600); }
+  const before=await p.evaluate(()=>window.__sent.length); await dismissAlert(); const rb=await p.$('[data-act="errRetry"]'); if(rb){ await rb.click(); await p.waitForTimeout(600); }
   console.log('retry sent', (await p.evaluate(()=>window.__sent.length))-before);
   // reminder sweep (waits for 20s timer)
   await p.waitForTimeout(16000);
