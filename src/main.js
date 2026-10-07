@@ -5,7 +5,7 @@ const NAV=[
   {g:"Quality assurance",items:[["calls","Call evaluations","QA scoring of calls, run in the QA Evaluation tool"],["emails","Email evaluations","QA scoring of email and chat interactions, run in the QA Evaluation tool"],["mystery","Mystery shopping","Planned shops of our own channels and what they found"],["journey","Journey testing","End-to-end tests of customer journeys and the defects found"],["spotchecks","Spot checks","Unannounced floor and desk checks"]]},
   {g:"Governance and risk",items:[["breaches","Breach tracker","Breaches from QA evaluations, upheld cases and checks, through to consequence"],["noncompliance","Non-compliance","Regulatory and policy non-compliance and its remediation"],["rca","RCA","Root cause analysis with corrective and preventive actions"],["product","Product findings and scope","Product issues found by Q&G and the scope they affect"]]},
   {g:"Rewards and recognition",items:[["rr","Recognition programmes","Programmes per venture, such as IM Service Stars: standings, nominations, clean record, appeals and winners"],["appreciations","Appreciations","Compliments customers give about our people"],["reviews","Positive reviews","Positive Google and Trustpilot reviews, matched to transactions to count as verified reviews"]]},
-  {g:"Team",items:[["mywork","My cockpit","What's open for you right now, across every section"],["team","Team workload","Who has what, what's overdue and turnaround times, for the Chief Q&G"],["perf","Performance","Monthly Q&G performance per person and department turnaround against targets"]]},
+  {g:"Team",items:[["mywork","My cockpit","What's open for you right now, across every section"],["team","Team workload","Who has what, what's overdue and turnaround times, for the Chief Q&G"],["perf","Performance","Monthly Q&G performance: your own figures, or the whole team for the Chief Q&G"],["kpis","KPIs","Q&G key performance indicators: open items, turnaround, breaches, against target"]]},
   {g:"Monitoring",items:[["controls","Monitoring and controls","The controls Q&G monitors, who owns them, how often they're tested and how they performed"],["links","Linked dashboards","Google review dashboard, 3CX call recordings and missed calls, and other systems"]]},
   {g:"Library",items:[["sops","SOP repository","Versioned SOPs with effective dates"],["regulations","Regulations library","UAE laws, regulations and circulars each venture works under, with article references"],["structure","Structure and flow","Teams, routing and escalation, and the customer experience journey"],["staff","Staff list","One list of people and teams that every section uses"],["guide","Platform guide","How the platform is designed and why, with the log of every requirement"]]},
   {g:"Administration",admin:true,items:[["questions","Open questions","Everything waiting on a decision or answer, by section"],["ventures","Ventures","The group's ventures, their lines of business and regulators"],["lists","Dropdown lists","Case types, channels, complaint types and natures, products, root causes and every other list people choose from"],["data","Backups and import","Daily Excel backups to Google Drive, downloads, and importing existing data"],["trash","Recycle bin","Everything deleted, kept and restorable by the administrator"],["errors","Error report","Anything that failed, with a way to run it again"],["outbox","Email log","Every email the platform sent or tried to send"],["settings","Settings","Working hours, SLAs and lists"],["audit","Audit log","Every change made on the platform"]]}
@@ -24,7 +24,7 @@ function navCount(k){
   return 0;
 }
 function renderNav(){
-  $("#rail").innerHTML=NAV.filter(g=>!g.admin||S.admin).map(g=>`${g.g?`<div class="grp">${esc(g.g)}</div>`:""}${g.items.filter(([k])=>!["team","perf"].includes(k)||isChief()).map(([k,l])=>{ const n=navCount(k); return `<button data-nav="${k}"${S.section===k?' aria-current="page"':""}><span>${esc(l)}</span>${n?`<b class="${k==="errors"||k==="breaches"?"red":""}">${n}</b>`:""}</button>`; }).join("")}`).join("");
+  $("#rail").innerHTML=NAV.filter(g=>!g.admin||S.admin).map(g=>`${g.g?`<div class="grp">${esc(g.g)}</div>`:""}${g.items.filter(([k])=>k!=="team"||isChief()).filter(([k])=>!["perf","kpis"].includes(k)||isQG()).map(([k,l])=>{ const n=navCount(k); return `<button data-nav="${k}"${S.section===k?' aria-current="page"':""}><span>${esc(l)}</span>${n?`<b class="${k==="errors"||k==="breaches"?"red":""}">${n}</b>`:""}</button>`; }).join("")}`).join("");
 }
 function go(sec){
   if(!NAVMAP[sec]||(NAVMAP[sec].admin&&!S.admin)) sec="home";
@@ -80,7 +80,8 @@ function renderInner(force){
   else if(sec==="sops") html=viewSOPs();
   else if(S.sel.task&&(sec==="mywork"||sec==="team")){ const t=S.tasks.find(x=>x.id===S.sel.task); html=t?viewTask(t):(S.sel.task=null,"Task not found."); }
   else if(sec==="mywork") html=viewMyWork();
-  else if(sec==="perf") html=isChief()?viewPerformance():`<div class="emptybox">Performance is visible to the Chief Q&G and the administrator.</div>`;
+  else if(sec==="perf") html=isQG()?viewPerformance():`<div class="emptybox">Performance is visible to Q&G team members.</div>`;
+  else if(sec==="kpis") html=isQG()?viewKPIs():`<div class="emptybox">KPIs are visible to Q&G team members.</div>`;
   else if(sec==="data") html=viewImport();
   else if(sec==="trash") html=viewTrash();
   else if(sec==="lists") html=S.admin?viewLists():`<div class="emptybox">Only the administrator manages dropdown lists.</div>`;
@@ -270,6 +271,9 @@ document.addEventListener("click",async e=>{
   if(["impTemplate","impClear","impRun","bkDrive","bkDownload"].includes(act)){ try{ await importAction(act,b); }finally{ render(true); } return; }
   if(["impOpen","impClose","impVen","impVenClear","impRestart","impGo"].includes(act)){ try{ await impAction(act,b); }finally{ render(true); } return; }
   if(act==="cxRepExport") return cxRepExport(b.dataset.k);
+  if(act.startsWith("kpi")){ b.disabled=true; try{ await kpiAction(act,b); }finally{ b.disabled=false; render(true); } return; }
+  if(act==="cxAutoAssign"){ if(!isQG()) return; const c=S.cases.find(x=>x.ref===b.dataset.ref); const who=qgAutoAssign(c.venture); if(!who) return toast("No Q&G team to assign to. Set one up in Staff list.");
+    if(await patch("mod/cx/cases/"+c.ref,{assigneeId:who,timeline:[...(c.timeline||[]),ev("Q&G owner: "+personName(who),"Auto-assigned")]})) toast(personName(who)+" assigned."); return; }
   if(act.startsWith("ls")){ b.disabled=true; try{ await listAction(act,b); }finally{ b.disabled=false; render(true); } return; }
   if(act==="rrAdd"){ const ui=S.ui.rr2||(S.ui.rr2={tab:"standings"}); const v=b.dataset.v;
     if(v==="menu"){ ui.addMenu=!ui.addMenu; return render(true); } ui.addMenu=false;
@@ -330,6 +334,7 @@ document.addEventListener("change",async e=>{
     else { const cc=S.cases.find(x=>x.ref===el.dataset.cxfile); if(cc&&files.length) await patch("mod/cx/cases/"+cc.ref,{files:[...(cc.files||[]),...files],updatedAt:nowMs(),timeline:[...(cc.timeline||[]),ev("Documents added",files.map(f=>f.name).join(", "))]}); }
     toast(files.length+" file"+(files.length===1?"":"s")+" attached."); return render(true); }
   if(el.dataset.lsauto!==undefined){ await listAuto(el); return render(true); }
+  if(el.dataset.kpi!==undefined){ if(kpiInput(el)) return; }
   if(el.dataset.impmap!==undefined&&S.ui.imp3){ S.ui.imp3.mapping[el.dataset.impmap]=el.value; return render(true); }
   if(el.dataset.imp3file&&el.files[0]){ await impReadFile(el.dataset.imp3file,el.files[0]); return render(true); }
   if(el.dataset.rrscore||el.dataset.rrpanel||el.dataset.rrfile){ if(await rrChange(el)) render(true); return; }

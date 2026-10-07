@@ -1,9 +1,17 @@
 /* ================= Team work, workload and open questions ================= */
 function qgStaff(date){ return staffList(date).filter(p=>{ const t=teamOf(p,date); return t&&t.kind==="qg"; }); }
 function qgOpts(sel){ return opts(qgStaff().map(p=>({v:p.id,l:p.name})).concat(sel&&!qgStaff().some(p=>p.id===sel)?[{v:sel,l:personName(sel)}]:[]),sel||"","Unassigned"); }
+/* Spread new cases evenly: the Q&G member with the fewest open items right now, for this venture */
+function qgAutoAssign(venture){
+  const people=qgStaff().filter(p=>venture?canSeeVenture(p,venture):true); if(!people.length) return null;
+  const open=workItems().filter(i=>i.state==="open");
+  const load=id=>open.filter(i=>i.assignee===id).length;
+  return people.slice().sort((a,b)=>load(a.id)-load(b.id)||a.name.localeCompare(b.name))[0].id;
+}
 const dayHours=()=>{ const [a,b]=[S.cfg.work.start,S.cfg.work.end].map(t=>{ const [h,m]=t.split(":").map(Number); return h+m/60; }); return Math.max(1,b-a); };
 const fmtTat=h=>h==null?"–":h<dayHours()?(Math.round(h*10)/10)+" working hrs":(Math.round(h/dayHours()*10)/10)+" working days";
 const QG_STAGES=["intake","qg_review","ready_internal"];
+const canSeeVenture=(p,v)=>{ if((p.ventureAccess||[]).length) return p.ventureAccess.includes(v); const t=teamOf(p); return !t||t.kind==="qg"||t.venture===v; };
 
 /* One list of everything Q&G owns, whatever section it lives in */
 function workItems(){
@@ -12,30 +20,29 @@ function workItems(){
   for(const c of S.cases){
     if(!keep(c.venture)) continue;
     const done=c.status==="closed";
-    const atQG=QG_STAGES.includes(c.status);
-    if(!done&&!atQG) { out.push({kind:"case",id:c.ref,sec:isCallback(c)?"callbacks":"complaints",title:c.ref+" · "+(c.subject||c.type),assignee:c.assigneeId||null,state:"waiting",stage:ST[c.status],created:c.createdAt,due:dueOf(c),doneAt:null}); continue; }
-    out.push({kind:"case",id:c.ref,sec:isCallback(c)?"callbacks":"complaints",title:c.ref+" · "+(c.subject||c.type),assignee:c.assigneeId||null,state:done?"done":"open",stage:ST[c.status],created:c.createdAt,due:done?null:dueOf(c),doneAt:done?ts((c.closure||{}).internalAt):null});
+    const pending=done?"":c.status==="with_lm"?personName((c.intake||{}).lmId):c.status==="consequence"?personName(consequenceOwner(c).lmId):c.status==="dispute"?"Chief Q&G":"Q&G";
+    out.push({kind:"case",id:c.ref,sec:isCallback(c)?"callbacks":"complaints",title:c.ref+" · "+(c.subject||c.type),assignee:c.assigneeId||null,state:done?"done":"open",stage:ST[c.status],pending,unassigned:!c.assigneeId,created:c.createdAt,due:done?null:dueOf(c),doneAt:done?ts((c.closure||{}).internalAt):null});
   }
   for(const r of S.recs){
     const def=REG[r.section]; if(!def||r.section==="controls"||!keep(recVenture(r))) continue;
     const done=def.final.includes(r.status);
-    out.push({kind:"rec",id:r.id,sec:r.section,title:(r.ref||r.id)+" · "+(r[def.cols[2]]||r[def.cols[1]]||def.noun),assignee:r.assigneeId||null,state:done?"done":"open",stage:r.status,created:r.createdAt,due:!done&&r.due?localToMs(r.due,S.cfg.work.end):null,doneAt:done?(r.closedAt||r.updatedAt||null):null});
+    out.push({kind:"rec",id:r.id,sec:r.section,title:(r.ref||r.id)+" · "+(r[def.cols[2]]||r[def.cols[1]]||def.noun),assignee:r.assigneeId||null,state:done?"done":"open",stage:r.status,pending:done?"":r.route&&!["Ready for retest","Retest failed"].includes(r.status)?personName(r.route.hopId):"Q&G",unassigned:!r.assigneeId,created:r.createdAt,due:!done&&r.due?localToMs(r.due,S.cfg.work.end):null,doneAt:done?(r.closedAt||r.updatedAt||null):null});
   }
   for(const t of S.tasks){
     const done=t.status==="Done", gone=t.status==="Cancelled"; if(gone||(S.venture&&t.venture&&t.venture!==S.venture)) continue;
-    out.push({kind:"task",id:t.id,sec:t.section||"",title:t.title,assignee:t.assigneeId||null,state:done?"done":"open",stage:t.status,created:t.createdAt,due:!done&&t.due?localToMs(t.due,S.cfg.work.end):null,doneAt:done?t.doneAt:null,task:t});
+    out.push({kind:"task",id:t.id,sec:t.section||"",title:t.title,assignee:t.assigneeId||null,state:done?"done":"open",stage:t.status,pending:"",unassigned:!t.assigneeId,created:t.createdAt,due:!done&&t.due?localToMs(t.due,S.cfg.work.end):null,doneAt:done?t.doneAt:null,task:t});
   }
   return out;
 }
 const isOver=i=>i.state==="open"&&i.due&&i.due<nowMs();
 const tatOf=i=>i.doneAt&&i.created?workHoursBetween(i.created,i.doneAt,S.cfg):null;
-function itemRow(i,showWho){
+function itemRow(i,showWho,showPending){
   const sec=NAVMAP[i.sec];
-  return `<tr class="click" data-act="openItem" data-kind="${i.kind}" data-id="${esc(i.id)}" data-sec="${esc(i.sec)}" tabindex="0"><td><b>${esc(i.title)}</b></td><td>${stampCell(i.created)}</td><td>${esc(sec?sec.label:"Task")}</td>${showWho?`<td>${i.assignee?esc(personName(i.assignee)):'<span class="tag amb">Unassigned</span>'}</td>`:""}
+  return `<tr class="click" data-act="openItem" data-kind="${i.kind}" data-id="${esc(i.id)}" data-sec="${esc(i.sec)}" tabindex="0"><td><b>${esc(i.title)}</b></td><td>${stampCell(i.created)}</td><td>${esc(sec?sec.label:"Task")}</td>${showWho?`<td>${i.assignee?esc(personName(i.assignee)):'<span class="tag amb">Unassigned</span>'}</td>`:""}${showPending?`<td>${i.pending?esc(i.pending):"—"}</td>`:""}
    <td>${esc(i.stage)}</td><td>${i.state==="done"?stampCell(i.doneAt):i.due?(isOver(i)?`<span class="tag red">Overdue ${esc(fmtDT(i.due))}</span>`:esc(fmtDT(i.due))):'<span class="muted">No due date</span>'}</td><td>${i.state==="done"?esc(fmtTat(tatOf(i))):esc(fmtTat(workHoursBetween(i.created,nowMs(),S.cfg)))+' <span class="muted">so far</span>'}</td></tr>`;
 }
-function itemTable(list,showWho,empty){
-  return list.length?`<div class="tbl"><table><thead><tr><th>Item</th><th>Created</th><th>Section</th>${showWho?"<th>Owner</th>":""}<th>Stage or status</th><th>Due or done</th><th>Turnaround</th></tr></thead><tbody>${list.map(i=>itemRow(i,showWho)).join("")}</tbody></table></div>`:`<div class="emptybox">${esc(empty)}</div>`;
+function itemTable(list,showWho,empty,showPending){
+  return list.length?`<div class="tbl"><table><thead><tr><th>Item</th><th>Created</th><th>Section</th>${showWho?"<th>Owner</th>":""}${showPending?"<th>Pending with</th>":""}<th>Stage or status</th><th>Due or done</th><th>Turnaround</th></tr></thead><tbody>${list.map(i=>itemRow(i,showWho,showPending)).join("")}</tbody></table></div>`:`<div class="emptybox">${esc(empty)}</div>`;
 }
 
 /* ---- My work ---- */
@@ -45,7 +52,7 @@ function viewMyWork(){
   const all=workItems().filter(i=>i.assignee===me.id);
   const open=all.filter(i=>i.state==="open").sort((a,b)=>(isOver(b)-isOver(a))||((a.due||9e15)-(b.due||9e15)));
   const done=all.filter(i=>i.state==="done").sort((a,b)=>(b.doneAt||0)-(a.doneAt||0)).slice(0,30);
-  const lm=S.cases.filter(c=>["with_lm","consequence"].includes(c.status)&&((c.intake||{}).lmId===me.id||(c.intake||{}).superiorId===me.id));
+  const lm=S.cases.filter(c=>["with_lm","consequence"].includes(c.status)&&c.assigneeId!==me.id&&((c.status==="with_lm"&&((c.intake||{}).lmId===me.id||(c.intake||{}).superiorId===me.id))||(c.status==="consequence"&&(consequenceOwner(c).lmId===me.id||consequenceOwner(c).superiorId===me.id))));
   const dueToday=open.filter(i=>i.due&&dateOf(i.due)===todayD()).length;
   return `<p class="lead">Hello ${esc((me.name||"").split(" ")[0])}. ${open.length?`You have ${open.length} open item${open.length>1?"s":""}${open.filter(isOver).length?`, ${open.filter(isOver).length} overdue`:""}${dueToday?`, ${dueToday} due today`:""}.`:"You're all clear."}${S.venture?` Showing ${esc(scopeLabel())} only.`:""}</p>
   <div class="figs4"><div><b>${open.length}</b><span>Open</span></div><div class="${open.filter(isOver).length?"warn":""}"><b>${open.filter(isOver).length}</b><span>Overdue</span></div><div><b>${done.filter(i=>i.doneAt>=nowMs()-30*864e5).length}</b><span>Done in 30 days</span></div><div><b>${fmtTat(avg(done.map(tatOf)))}</b><span>Average turnaround</span></div></div>
@@ -53,7 +60,7 @@ function viewMyWork(){
   ${(()=>{ const mine=S.cases.filter(c=>(c.pendingCalls||[]).some(x=>x.by===S.uid)); return mine.length?`<div class="callout amb"><b>Calls you started that aren't logged yet</b>${mine.map(c=>`<div><button class="linkbtn" data-act="cxOpenOther" data-ref="${esc(c.ref)}">${esc(c.ref)}</button> started ${esc(fmtDT(c.pendingCalls.find(x=>x.by===S.uid).at))}</div>`).join("")}</div>`:""; })()}
   ${(()=>{ const a=S.tatLog.filter(x=>x.staffId===me.id&&x.month===monthOf(nowMs())); return a.length?`<p class="hint">${a.length} time limit breach${a.length>1?"es":""} recorded for you this month.</p>`:""; })()}
   ${(()=>{ const rt=S.recs.filter(r=>r.route&&r.route.hopId===me.id&&r.status!=="Closed"); return rt.length?`<h2 class="h3">Findings routed to your team</h2><div class="tbl"><table><thead><tr><th>Reference</th><th>Section</th><th>Priority</th><th>Routed</th><th>Update expected by</th><th>Status</th></tr></thead><tbody>${rt.map(r=>`<tr class="click" data-act="openItem" data-kind="rec" data-sec="${esc(r.section)}" data-id="${esc(r.id)}" tabindex="0"><td><b>${esc(r.ref||r.id)}</b></td><td>${esc(NAVMAP[r.section].label)}</td><td>${prioTag(r.priority)}</td><td>${stampCell(r.route.routedAt)}</td><td>${r.route.dueDate&&r.route.dueDate<todayD()&&r.status!=="Ready for retest"?`<span class="tag red">${esc(fmtD(r.route.dueDate))}</span>`:esc(fmtD(r.route.dueDate))}</td><td><span class="tag cx">${esc(r.status)}</span></td></tr>`).join("")}</tbody></table></div>`:""; })()}
-  <h2 class="h3">Open</h2>${itemTable(open,false,"Nothing is assigned to you right now.")}
+  <h2 class="h3">Open <span class="muted">· average age ${esc(fmtTat(avg(open.map(i=>workHoursBetween(i.created,nowMs(),S.cfg)))))}</span></h2>${itemTable(open,false,"Nothing is assigned to you right now.",true)}
   <h2 class="h3">Recently done</h2>${itemTable(done,false,"Nothing completed yet.")}`;
 }
 const avg=a=>{ a=a.filter(x=>x!=null&&!isNaN(x)); return a.length?a.reduce((s,x)=>s+x,0)/a.length:null; };
@@ -62,13 +69,14 @@ const avg=a=>{ a=a.filter(x=>x!=null&&!isNaN(x)); return a.length?a.reduce((s,x)
 function viewTeam(){
   if(!isChief()) return `<div class="emptybox">Team workload is visible to the Chief Q&G and the administrator.</div>`;
   const ui=S.ui.team||(S.ui.team={days:30,who:null,newTask:false});
-  const from=nowMs()-ui.days*864e5, items=workItems().filter(i=>i.state!=="waiting");
+  const from=nowMs()-ui.days*864e5, items=workItems();
   const people=qgStaff(), rows=[...people.map(p=>({id:p.id,name:p.name})),{id:null,name:"Unassigned"}];
   const stat=id=>{ const mine=items.filter(i=>i.assignee===id), open=mine.filter(i=>i.state==="open"), done=mine.filter(i=>i.state==="done"&&i.doneAt>=from);
     const bySec={}; open.forEach(i=>bySec[i.sec]=(bySec[i.sec]||0)+1);
-    return {open:open.length,over:open.filter(isOver).length,done:done.length,tat:avg(done.map(tatOf)),oldest:open.length?Math.max(...open.map(i=>workHoursBetween(i.created,nowMs(),S.cfg))):null,bySec}; };
-  const tbl=`<div class="tbl"><table><thead><tr><th>Person</th><th class="n">Open</th><th class="n">Overdue</th><th class="n">Done in ${ui.days} days</th><th>Average turnaround</th><th>Oldest open item</th><th>Open by section</th></tr></thead><tbody>
-    ${rows.map(r=>{ const s=stat(r.id); if(r.id===null&&!s.open&&!s.done) return ""; return `<tr class="click" data-act="teamWho" data-id="${esc(r.id||"none")}" tabindex="0"${ui.who===(r.id||"none")?' aria-selected="true"':""}><td><b>${esc(r.name)}</b></td><td class="n">${s.open}</td><td class="n">${s.over?`<span class="tag red">${s.over}</span>`:0}</td><td class="n">${s.done}</td><td>${esc(fmtTat(s.tat))}</td><td>${s.oldest==null?"–":esc(fmtTat(s.oldest))}</td><td class="wrap">${Object.entries(s.bySec).map(([k,n])=>`<span class="tag">${esc((NAVMAP[k]||{label:"Tasks"}).label)} ${n}</span>`).join(" ")}</td></tr>`; }).join("")}
+    const ages=open.map(i=>workHoursBetween(i.created,nowMs(),S.cfg));
+    return {open:open.length,over:open.filter(isOver).length,done:done.length,tat:avg(done.map(tatOf)),avgAge:avg(ages),oldest:ages.length?Math.max(...ages):null,bySec}; };
+  const tbl=`<div class="tbl"><table><thead><tr><th>Person</th><th class="n">Open</th><th class="n">Overdue</th><th class="n">Done in ${ui.days} days</th><th>Average turnaround (closed)</th><th>Average age (open)</th><th>Oldest open item</th><th>Open by section</th></tr></thead><tbody>
+    ${rows.map(r=>{ const s=stat(r.id); if(r.id===null&&!s.open&&!s.done) return ""; return `<tr class="click" data-act="teamWho" data-id="${esc(r.id||"none")}" tabindex="0"${ui.who===(r.id||"none")?' aria-selected="true"':""}><td><b>${esc(r.name)}</b></td><td class="n">${s.open}</td><td class="n">${s.over?`<span class="tag red">${s.over}</span>`:0}</td><td class="n">${s.done}</td><td>${esc(fmtTat(s.tat))}</td><td>${esc(fmtTat(s.avgAge))}</td><td>${s.oldest==null?"–":esc(fmtTat(s.oldest))}</td><td class="wrap">${Object.entries(s.bySec).map(([k,n])=>`<span class="tag">${esc((NAVMAP[k]||{label:"Tasks"}).label)} ${n}</span>`).join(" ")}</td></tr>`; }).join("")}
   </tbody></table></div>`;
   const tot={open:items.filter(i=>i.state==="open").length,over:items.filter(isOver).length,done:items.filter(i=>i.state==="done"&&i.doneAt>=from).length,un:items.filter(i=>i.state==="open"&&!i.assignee).length};
   const who=ui.who, sel=who?items.filter(i=>(i.assignee||"none")===who).sort((a,b)=>(a.state==="done")-(b.state==="done")||(isOver(b)-isOver(a))||((b.doneAt||0)-(a.doneAt||0))):null;
@@ -76,8 +84,8 @@ function viewTeam(){
   ${!people.length?`<div class="callout amb">No Q&G team is set up yet. In Staff list, add a team of kind “Q&G team” and put your team members in it.</div>`:""}
   ${ui.newTask?taskForm(null):""}
   <div class="figs4"><div><b>${tot.open}</b><span>Open across the team</span></div><div class="${tot.over?"warn":""}"><b>${tot.over}</b><span>Overdue</span></div><div class="${tot.un?"warn":""}"><b>${tot.un}</b><span>Unassigned</span></div><div><b>${tot.done}</b><span>Done in ${ui.days} days</span></div></div>
-  ${tbl}<p class="hint">Turnaround is measured in working hours from when an item was created to when it was completed. Customer cases count here while they sit at a Q&G stage; time with line managers is tracked on the case itself.</p>
-  ${sel?`<h2 class="h3">${esc(who==="none"?"Unassigned items":personName(who))}</h2>${itemTable(sel,false,"No items.")}`:""}`;
+  ${tbl}<p class="hint">Turnaround is measured in working hours from when an item was created to when it was completed. A case counts against its Q&G owner for as long as it's open, including while it's with a line manager; click a name below to see what's pending with whom.</p>
+  ${sel?`<h2 class="h3">${esc(who==="none"?"Unassigned items":personName(who))}</h2>${itemTable(sel,false,"No items.",true)}`:""}`;
 }
 function taskForm(t){
   const k=t?"task-"+t.id:"task-new";

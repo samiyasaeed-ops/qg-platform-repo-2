@@ -113,7 +113,7 @@ function viewPerformance(){
   const T=tatCfg();
   const targetOf=i=>i.kind==="rec"?T[i.sec]:i.kind==="task"?T.task:null;
   const evs=evalsV().filter(e=>inMonth(evalTimes(e).submitted));
-  const people=qgStaff();
+  const me=meStaff(), people=isChief()?qgStaff():qgStaff().filter(p=>me&&p.id===me.id);
   const breaches=S.tatLog.filter(x=>x.month===ui.month&&inV(x.venture||""));
   const row=p=>{ const mine=items.filter(i=>i.assignee===p.id), tats=mine.map(tatOf).filter(x=>x!=null), within=mine.filter(i=>{ const t=targetOf(i); return t==null||tatOf(i)<=t; }).length;
     const ev=evs.filter(e=>{ const s=staffByUid(e.createdBy); return s&&s.id===p.id; }), hm=ev.map(e=>evalTimes(e).handlingMin).filter(x=>x!=null);
@@ -129,6 +129,7 @@ function viewPerformance(){
   const evalH=evs.map(e=>evalTimes(e).handlingMin).filter(x=>x!=null), evalR=evs.map(e=>evalTimes(e).reviewHrs).filter(x=>x!=null), evalP=evs.map(e=>evalTimes(e).publishHrs).filter(x=>x!=null);
   const who=ui.who, whoList=who?breaches.filter(x=>x.staffId===who):null;
   return `<div class="row between"><label class="inline">Month <select data-ui="perf.month">${opts(months.map(x=>({v:x,l:new Date(x+"-01T00:00:00Z").toLocaleDateString("en-GB",{month:"long",year:"numeric",timeZone:"UTC"})})),ui.month)}</select></label><span class="hint" style="margin:0">Turnaround counts working hours, Dubai time. Targets are set in Settings.</span></div>
+  ${!isChief()?`<p class="hint">Showing your own figures. The Chief Q&G sees the whole team.</p>`:""}
   <h2 class="h3">Q&G members</h2>
   <div class="tbl"><table><thead><tr><th>Person</th><th class="n sep">Items closed</th><th>Average turnaround</th><th class="n">Within target</th><th class="n sep">Evaluations</th><th>Average handling</th><th class="n sep">Reviews</th><th>Average review time</th><th class="n sep">Time limit breaches</th></tr></thead>
   <tbody>${people.length?people.map(row).join(""):`<tr><td colspan="9" class="muted">Add your Q&G team in Staff list to see members here.</td></tr>`}</tbody></table></div>

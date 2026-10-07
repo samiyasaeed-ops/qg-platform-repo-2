@@ -138,7 +138,7 @@ async function createCase(kind){
   const ref=await nextRef(cb?"CB":"CX");
   const c={ref,type,source:d.source,receivedAt:rec,mobile:String(d.mobile||"").trim(),dealRef:String(d.dealRef||"").trim(),venture,lob,subject:d.subject.trim(),description:d.description.trim(),
     priority:d.priority||"Normal",staffId:d.staffId||null,staffTeamId:d.staffId?((asgAt(S.staff[d.staffId],dateOf(rec))||{}).teamId||null):null,extRef:d.extRef||"",
-    assigneeId:(meStaff()&&isQG())?meStaff().id:null,status:"intake",stageAt:nowMs(),createdAt:nowMs(),createdBy:S.uid,createdByName:S.meName,updatedAt:nowMs(),linkedTo:d.linkedTo||null,requestSubtype:type==="Service – Request"?d.requestSubtype:"",product:classifyValues(d).product||"",complaintType:isComplaintType(type)?d.complaintType||"":"",nature:isComplaintType(type)?(classifyValues(d).nature||""):"",flag:flagOf(type),files:d.files||[],
+    assigneeId:(meStaff()&&isQG())?meStaff().id:qgAutoAssign(fv),status:"intake",stageAt:nowMs(),createdAt:nowMs(),createdBy:S.uid,createdByName:S.meName,updatedAt:nowMs(),linkedTo:d.linkedTo||null,requestSubtype:type==="Service – Request"?d.requestSubtype:"",product:classifyValues(d).product||"",complaintType:isComplaintType(type)?d.complaintType||"":"",nature:isComplaintType(type)?(classifyValues(d).nature||""):"",flag:flagOf(type),files:d.files||[],
     intake:{},lm:{attempts:[]},review:{},closure:{},notes:[],qgAttempts:[],pendingCalls:[],timeline:[ev("Registered","Source: "+d.source+(d.notDup?". Confirmed as a separate issue from "+dupMatches(fv,d.mobile,d.dealRef).map(x=>x.ref).join(", "):""))]};
   if(!await put("mod/cx/cases/"+ref,c)) return;
   await addAudit("case",ref,"Registered",null,{type,source:d.source,lob});

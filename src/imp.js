@@ -109,7 +109,7 @@ async function impRun(){
     try{
       if(t==="complaints"||t==="callbacks"){
         const closed=x.status==="Closed", cAt=x.closed||x.received, ref=await nextRef(t==="callbacks"?"CB":"CX");
-        const c={ref,type:t==="callbacks"?"Callback request":(x.type||"Complaint"),source:x.source,receivedAt:x.received,mobile:String(x.mobile||""),dealRef:String(x.dealRef||""),venture:v,lob:x.lob,subject:x.subject,description:x.description,priority:x.priority||"Normal",staffId:x.staff||null,staffTeamId:x.staff?((asgAt(S.staff[x.staff],dateOf(x.received))||{}).teamId||null):null,assigneeId:x.owner||null,
+        const c={ref,type:t==="callbacks"?"Callback request":(x.type||"Complaint"),source:x.source,receivedAt:x.received,mobile:String(x.mobile||""),dealRef:String(x.dealRef||""),venture:v,lob:x.lob,subject:x.subject,description:x.description,priority:x.priority||"Normal",staffId:x.staff||null,staffTeamId:x.staff?((asgAt(S.staff[x.staff],dateOf(x.received))||{}).teamId||null):null,assigneeId:x.owner||qgAutoAssign(v),
           status:closed?"closed":"intake",stageAt:closed?cAt:now,createdAt:x.received,updatedAt:now,createdBy:S.uid,createdByName:S.meName,intake:{},lm:{attempts:[],resolution:x.resolution||""},notes:[],qgAttempts:[],pendingCalls:[],
           product:x.product||"",complaintType:x.complaintType||"",nature:x.nature||"",
           review:closed?{verdict:x.verdict||"",consequence:x.consequence||"None",finalSummary:x.resolution||"",businessOutcome:x.businessOutcome||"",rootCause:x.rootCause||"",closureReason:x.closureReason||"Resolved",at:cAt,byName:"Uploaded"}:{},closure:closed?{externalAt:cAt,internalAt:cAt,externalByName:"Uploaded",internalByName:"Uploaded",reason:x.closureReason||"Resolved"}:{},
@@ -130,7 +130,7 @@ async function impRun(){
         for(const [k,l,ty] of def.fields){ if(ty==="ident"){ out.mobile=String(x.mobile||""); out.dealRef=String(x.dealRef||""); continue; } const vv=x[k];
           if(ty==="date") out[k]=vv?dateOf(vv):""; else if(ty==="lob") out[k]=vv?v+"|"+vv:""; else if(ty==="staff"){ out[k]=vv||null; if(vv) out[k+"Team"]=(asgAt(S.staff[vv],out.date||todayD())||{}).teamId||null; } else out[k]=vv??""; }
         const status=x.status||def.statuses[0], ref=await nextRef(def.prefix), created=x.date||x.lastTested||now;
-        const doc={id:ref,ref,section:t,...out,venture:v,status,assigneeId:x.owner||null,createdAt:created,updatedAt:now,closedAt:def.final.includes(status)?now:null,createdBy:S.uid,createdByName:S.meName,imported:meta(r.ix),raw,history:[{at:now,byName:S.meName,note:"Uploaded from existing data: "+st.fileName+", row "+r.ix}]};
+        const doc={id:ref,ref,section:t,...out,venture:v,status,assigneeId:x.owner||qgAutoAssign(v),createdAt:created,updatedAt:now,closedAt:def.final.includes(status)?now:null,createdBy:S.uid,createdByName:S.meName,imported:meta(r.ix),raw,history:[{at:now,byName:S.meName,note:"Uploaded from existing data: "+st.fileName+", row "+r.ix}]};
         if(await put("mod/reg/records/"+ref,doc)){ done++; refs.push(ref); } else failed++;
       }
     }catch(e){ failed++; }
