@@ -1,0 +1,41 @@
+rules_version = '2';
+// Starting rules, not a finished security model. The app's own Staff-list
+// roles (admin, Q&G, venture access) live in Firestore data, which rules
+// can read — see isAdmin()/isQG() below — but this is a reasonable first
+// pass, not a substitute for a real review before anyone outside your team
+// can reach this project. In particular: every signed-in user can currently
+// read every collection, matching what the claude.ai artifact itself does
+// today (it has no per-venture read restriction either), but double-check
+// this is actually what you want before going further than your own team.
+service cloud.firestore {
+  match /databases/{database}/documents {
+    function signedIn() { return request.auth != null; }
+    function isAdmin() { return signedIn() && exists(/databases/$(database)/documents/admins/$(request.auth.uid)); }
+
+    // Admin flag: only an existing admin can grant it to someone else.
+    // The FIRST admin has to be added by hand in the console (README.md
+    // step 4) — there's no bootstrap path around that, by design.
+    match /admins/{uid} {
+      allow read: if signedIn();
+      allow write: if isAdmin();
+    }
+
+    // Owner-write collections: everyone signed in can read (so the app's
+    // own role checks, which run client-side, have the data they need),
+    // only admins can write. Matches docs/capabilities.json's db.rules
+    // from the claude.ai version.
+    match /mod/core/staff/{doc=**} { allow read: if signedIn(); allow write: if isAdmin(); }
+    match /mod/core/teams/{doc=**} { allow read: if signedIn(); allow write: if isAdmin(); }
+    match /mod/core/config/{doc=**} { allow read: if signedIn(); allow write: if isAdmin(); }
+    match /mod/pb/{doc=**} { allow read: if signedIn(); allow write: if isAdmin(); }
+    match /mod/sop/{doc=**} { allow read: if signedIn(); allow write: if isAdmin(); }
+    match /mod/lib/{doc=**} { allow read: if signedIn(); allow write: if isAdmin(); }
+
+    // Everything else: any signed-in user can read and write. This mirrors
+    // the claude.ai artifact's own "interact" default for cases, records,
+    // evaluations, tasks, logs and so on.
+    match /{document=**} {
+      allow read, write: if signedIn();
+    }
+  }
+}

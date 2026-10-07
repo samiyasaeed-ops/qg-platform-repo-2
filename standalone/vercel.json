@@ -1,5 +1,4 @@
 {
-  "outputDirectory": "standalone/dist",
   "rewrites": [
     { "source": "/_blob/:id", "destination": "/api/_blob/:id" }
   ]
